@@ -148,6 +148,7 @@ class BinaryProgram:
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
             "mill": [(100, 90, -0.5), (100, 90, 0.5)],
+            "orbit" : [(100, 90, 0.65), (100, 90, -0.65)],
             "follow_leader": [(75, 90, 0),(75, 90, -0.5)],
             "disperse": [(100, 90, -2),(100, 90, 0)],
             "diffuse": [(50, 270, 0),(0, 270, 2)],
@@ -155,7 +156,9 @@ class BinaryProgram:
             "circle": [(50, 90, 0.5), (50, 90, 0.5)]
         }
 
-        self.cur_mode = 'pause'
+        self.cur_mode = 'orbit'
+
+        self.delay = 0
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -266,25 +269,29 @@ class BinaryProgram:
         self.board.RGB.show()
 
     def control(self, mode):
-        if mode in self.control_modes.keys():
-            self.cur_mode = mode
+        if self.delay:
+            self.delay -= 1
+        else:
+            if mode in self.control_modes.keys():
+                self.cur_mode = mode
 
-        print(self.cur_mode)
-        try:
-            velocities = self.control_modes[self.cur_mode]
-        except KeyError:
-            velocities = self.control_modes['pause']
-            print("Invalid mode, pausing.")
-        detected_vel = velocities[0]
-        undetected_vel = velocities[1]
-            
-        self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
-        if not self.dry_run:
-            if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(*detected_vel)  # Control robot movement function
-                # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
-            else:
-                self.chassis.set_velocity(*undetected_vel)
+            print(self.cur_mode)
+            try:
+                velocities = self.control_modes[self.cur_mode]
+            except KeyError:
+                velocities = self.control_modes['pause']
+                print("Invalid mode, pausing.")
+            detected_vel = velocities[0]
+            undetected_vel = velocities[1]
+                
+            self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
+            if not self.dry_run:
+                if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
+                    self.chassis.set_velocity(*detected_vel)  # Control robot movement function
+                    self.delay = 100
+                    # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
+                else:
+                    self.chassis.set_velocity(*undetected_vel)
 
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
