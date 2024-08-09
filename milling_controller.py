@@ -20,6 +20,7 @@ import threading
 import RPi.GPIO as GPIO
 import csv
 import datetime
+import pandas as pd
 
 # import yaml_handle
 import HiwonderSDK.Board as Board
@@ -131,7 +132,8 @@ class BinaryProgram:
         self.boolean_detection_averager = st.Average(10)
         
         self.log_file = '/home/pi/logs/' + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S") + '.csv'
-        self.history = [['detection', 'smoothed_detection', 'time']] # for recording history into a csv
+        self.start_time = time.time_ns()
+        self.history = [] # for recording history into a csv
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -205,9 +207,7 @@ class BinaryProgram:
 
     def stop(self):
         # Logs the history of the robot's detections, speed, and turn rate to a csv file
-        with open(self.log_file, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(self.history)
+        pd.DataFrame(self.history).to_csv(self.log_file, index=False, header=['detection', 'smoothed_detection', 'time'])
 
         self._run = False
         self.chassis.set_velocity(0, 0, 0)
@@ -250,7 +250,7 @@ class BinaryProgram:
             else:
                 self.chassis.set_velocity(100, 90, 0.5)
         
-        self.history.append([self.detected, self.smoothed_detected, datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S.%f")])
+        self.history.append([int(self.detected), self.smoothed_detected, time.time_ns() - self.start_time])
 
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
