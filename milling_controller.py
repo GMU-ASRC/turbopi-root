@@ -119,6 +119,7 @@ class BinaryProgram:
         self.preview_size = (640, 480)
 
         self.target_color = ('green')
+        self.target_color2 =('red')
         self.chassis = mecanum.MecanumChassis()
 
         self.camera: Camera.Camera | None = None
@@ -141,6 +142,7 @@ class BinaryProgram:
         self.fps_averager = st.Average(10)
         self.detected = False
         self.boolean_detection_averager = st.Average(10)
+        self.boolean_detection_averager2 = st.Average(10)
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -248,13 +250,25 @@ class BinaryProgram:
         self.board.RGB.show()
 
     def control(self):
-        self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
+        # self.set_rgb ('green' if bool(self.smoothed_detected) or bool(self.smoothed_detected2) else 'blue')
+        if self.smoothed_detected2 == True:
+            self.set_rgb('red')
+        elif self.smoothed_detected == True:
+            self.set_rgb('green')
+        else:
+            self.set_rgb('blue')
         if not self.dry_run:
-            if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, -0.5)  # Control robot movement function
-                # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
+            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
+                self.chassis.set_velocity(100, 90, 0)  # Control robot movement function
+                        # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
+            elif self.smoothed_detected and self.smoothed_detected2:
+                self.chassis.set_velocity(100, 90, 0)
+            elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
+                self.chassis.set_velocity(100, 90, -0.5)
             else:
                 self.chassis.set_velocity(100, 90, 0.5)
+ 
+
 
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
@@ -280,6 +294,7 @@ class BinaryProgram:
         }
         # extract the LAB threshold
         threshold = (tuple(self.lab_data[self.target_color][key]) for key in ['min', 'max'])
+        threshold2 = (tuple(self.lab_data[self.target_color2][key]) for key in ['min', 'max'])
         # breakpoint()
         # run contour detection
         target_contours = self.color_contour_detection(
@@ -287,22 +302,30 @@ class BinaryProgram:
             tuple(threshold),
             **contour_args
         )
+        target_contours2 = self.color_contour_detection(
+            frame_clean,
+            tuple(threshold2),
+            **contour_args
+        )
         # The output of color_contour_detection() is sorted highest to lowest
         biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
-        self.detected: bool = biggest_contour_area > 300  # did we detect something of interest?
+        biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
+        self.detected: bool = biggest_contour_area > 300
+        self.detected2: bool = biggest_contour_area2 > 300  # did we detect something of interest?
 
         self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
-
+        self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
         # print(bool(smoothed_detected), smoothed_detected)
 
         self.control()  # ################################
-
         # draw annotations of detected contours
         if self.detected:
             self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
             self.draw_text(annotated_image, range_bgr[self.target_color], self.target_color)
         else:
             self.draw_text(annotated_image, range_bgr['black'], 'None')
+        if biggest_contour_area2 > 100:
+            self.draw_fitted_rect(annotated_image, biggest_contour2, range_bgr[self.target_color2])
         self.draw_fps(annotated_image, range_bgr['black'], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
