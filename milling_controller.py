@@ -90,7 +90,6 @@ def udp_listener(program):
             if stop:
                 return
 
-
 def get_yaml_data(yaml_file):
     with open(yaml_file, 'r', encoding='utf-8') as file:
         file_data = file.read()
@@ -175,6 +174,9 @@ class BinaryProgram:
             self.startup_beep()
 
         self.exit_on_stop = exit_on_stop
+
+    def set_mode(self, mode):
+        self.cur_mode = mode
 
     def startup_beep(self):
         self.buzzfor(0.05)
