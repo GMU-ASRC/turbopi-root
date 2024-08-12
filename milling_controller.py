@@ -144,6 +144,17 @@ class BinaryProgram:
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(10)
 
+        self.control_modes = {
+            "pause": [(0, 0, 0), (0, 0, 0)],
+            "mill": [(100, 90, -0.5), (100, 90, 0.5)],
+            "follow_leader": [(75, 90, 0),(75, 90, -0.5)],
+            "disperse": [(100, 90, -2),(100, 90, 0)],
+            "diffuse": [(50, 270, 0),(0, 270, 2)],
+            "straight": [(50, 90, 0), (50, 90, 0)],
+            "circle": [(50, 90, 0.5), (50, 90, 0.5)]
+        }
+        self.cur_mode = "pause"
+
         self.show = self.can_show_windows()
         if not self.show:
             print("Failed to create test window.")
@@ -249,7 +260,19 @@ class BinaryProgram:
         self.board.RGB.setPixelColor(1, self.board.PixelColor(r, g, b))
         self.board.RGB.show()
 
-    def control(self):
+    def control(self, mode):
+        if mode in self.control_modes.keys():
+            self.cur_mode = mode
+
+        print(self.cur_mode)
+        try:
+            velocities = self.control_modes[self.cur_mode]
+        except KeyError:
+            velocities = self.control_modes['pause']
+            print("Invalid mode, pausing.")
+        detected_vel = velocities[0]
+        undetected_vel = velocities[1]
+
         # self.set_rgb ('green' if bool(self.smoothed_detected) or bool(self.smoothed_detected2) else 'blue')
         if self.smoothed_detected2 == True:
             self.set_rgb('red')
@@ -264,9 +287,9 @@ class BinaryProgram:
             elif self.smoothed_detected and self.smoothed_detected2:
                 self.chassis.set_velocity(100, 90, 0)
             elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, -0.5)
+                self.chassis.set_velocity(*detected_vel)
             else:
-                self.chassis.set_velocity(100, 90, 0.5)
+                self.chassis.set_velocity(*undetected_vel)
  
 
 
@@ -317,7 +340,7 @@ class BinaryProgram:
         self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
         # print(bool(smoothed_detected), smoothed_detected)
 
-        self.control()  # ################################
+        self.control(self.cur_mode)  # ################################
         # draw annotations of detected contours
         if self.detected:
             self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
