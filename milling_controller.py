@@ -146,6 +146,7 @@ class BinaryProgram:
         self.detected = False
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(10)
+        self.red_position = 0
 
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
@@ -289,7 +290,7 @@ class BinaryProgram:
 
         if not self.dry_run:
             if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, 0)  # Control robot movement function
+                self.chassis.set_velocity(100, 90, self.red_position)  # Control robot movement function
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
@@ -342,6 +343,11 @@ class BinaryProgram:
         biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
         self.detected: bool = biggest_contour_area > 300
         self.detected2: bool = biggest_contour_area2 > 300  # did we detect something of interest?
+        if self.detected2:
+            M = cv2.moments(biggest_contour2)
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+            self.red_position = (cx / 320) - 0.5
 
         self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
         self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
