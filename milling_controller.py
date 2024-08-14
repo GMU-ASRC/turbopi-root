@@ -291,6 +291,8 @@ class BinaryProgram:
 
         if not self.dry_run:
             if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
+                self.chassis.set_velocity(0, 90, -2)
+                time.sleep(0.2)
                 self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
@@ -373,7 +375,7 @@ class BinaryProgram:
             if key == 27:
                 return
         else:
-            time.sleep(1E-4)
+            time.sleep(1E-3)
 
     def main(self):
 
