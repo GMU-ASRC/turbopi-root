@@ -290,8 +290,8 @@ class BinaryProgram:
             if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
                 self.chassis.set_velocity(100, 90, 0)  # Control robot movement function
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
-            elif self.smoothed_detected and self.smoothed_detected2:
-                self.chassis.set_velocity(100, 90, 0)
+            # elif self.smoothed_detected and self.smoothed_detected2:
+            #     self.chassis.set_velocity(100, 90, 0)
             elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
                 self.chassis.set_velocity(*detected_vel)
             else:
@@ -347,6 +347,8 @@ class BinaryProgram:
         # print(bool(smoothed_detected), smoothed_detected)
 
         self.control(self.cur_mode)  # ################################
+
+        
         # draw annotations of detected contours
         if self.detected:
             self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
