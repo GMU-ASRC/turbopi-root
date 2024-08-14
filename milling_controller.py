@@ -373,7 +373,7 @@ class BinaryProgram:
             if key == 27:
                 return
         else:
-            time.sleep(1E-3)
+            time.sleep(1E-4)
 
     def main(self):
 
