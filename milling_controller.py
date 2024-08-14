@@ -342,8 +342,8 @@ class BinaryProgram:
         # The output of color_contour_detection() is sorted highest to lowest
         biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
         biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
-        self.detected: bool = biggest_contour_area > 800
-        self.detected2: bool = biggest_contour_area2 > 800  # did we detect something of interest?
+        self.detected: bool = biggest_contour_area > 700
+        self.detected2: bool = biggest_contour_area2 > 700  # did we detect something of interest?
         if self.detected2:
             M = cv2.moments(biggest_contour2)
             if M['m00'] != 0:
