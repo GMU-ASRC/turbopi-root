@@ -145,7 +145,7 @@ class BinaryProgram:
         self.fps_averager = st.Average(10)
         self.detected = False
         self.boolean_detection_averager = st.Average(10)
-        self.boolean_detection_averager2 = st.Average(10)
+        self.boolean_detection_averager2 = st.Average(5)
         self.red_position = 0
 
         self.control_modes = {
