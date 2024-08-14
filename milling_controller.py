@@ -288,18 +288,22 @@ class BinaryProgram:
             self.set_rgb('green')
         else:
             self.set_rgb('blue')
-
+        guh = 0
         if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection                
+            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection  
+                if guh == 1:
+                    self.chassis.set_velocity(0, 90, -2)              
                 self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
-                time.sleep(0.1)
+                guh = 0
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
             elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
                 self.chassis.set_velocity(*detected_vel)
+                guh = 1
             else:
                 self.chassis.set_velocity(*undetected_vel)
+                guh = 1
  
 
 
