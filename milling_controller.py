@@ -280,12 +280,13 @@ class BinaryProgram:
         undetected_vel = velocities[1]
 
         # self.set_rgb ('green' if bool(self.smoothed_detected) or bool(self.smoothed_detected2) else 'blue')
-        if self.smoothed_detected2 == True:
+        if self.smoothed_detected2:
             self.set_rgb('red')
-        elif self.smoothed_detected == True:
+        elif self.smoothed_detected:
             self.set_rgb('green')
         else:
             self.set_rgb('blue')
+
         if not self.dry_run:
             if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
                 self.chassis.set_velocity(100, 90, 0)  # Control robot movement function
@@ -348,7 +349,7 @@ class BinaryProgram:
 
         self.control(self.cur_mode)  # ################################
 
-        
+
         # draw annotations of detected contours
         if self.detected:
             self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
