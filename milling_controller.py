@@ -288,7 +288,7 @@ class BinaryProgram:
             self.set_rgb('green')
         else:
             self.set_rgb('blue')
-        guh = 0
+        
         if not self.dry_run:
             if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection  
                 if guh == 1:
