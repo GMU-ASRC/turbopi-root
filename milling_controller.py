@@ -275,7 +275,7 @@ class BinaryProgram:
         if mode in self.control_modes.keys():
             self.cur_mode = mode
 
-        # print(self.cur_mode)
+        print(self.cur_mode)
         try:
             velocities = self.control_modes[self.cur_mode]
         except KeyError:
