@@ -112,6 +112,10 @@ def prompt(state, cmd=None, delprev=False):
     elif cmd.startswith('q'):
         stop_all()
         quit(delprev)
+    elif cmd.startswith('track'):
+        message = f"    track"
+        broadcast(message.encode())
+        print("Trackin On")
     else:
         print("Invalid command.")
         # phelp()
