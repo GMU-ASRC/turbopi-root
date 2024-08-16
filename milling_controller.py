@@ -275,7 +275,7 @@ class BinaryProgram:
         if mode in self.control_modes.keys():
             self.cur_mode = mode
 
-        print(self.cur_mode)
+        # print(self.cur_mode)
         try:
             velocities = self.control_modes[self.cur_mode]
         except KeyError:
@@ -303,11 +303,14 @@ class BinaryProgram:
                 
                 if not self.smoothed_detected2:
                     if self.last_direction == 'left':
-                        self.chassis.set_velocity(100, 90, -1.5)
+                        self.chassis.set_velocity(100, 90, -1)
+                        print("left")
                     elif self.last_direction == 'right':
-                        self.chassis.set_velocity(100, 90, 1.5)
+                        self.chassis.set_velocity(100, 90, 1)
+                        print("right")
                 else:
                     self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
+                    print("tracking")
 
             elif self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
                 # breakpoint()
