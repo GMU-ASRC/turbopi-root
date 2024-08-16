@@ -78,6 +78,9 @@ def udp_listener(program):
         elif b'switch' in cmd:
             cmd = cmd.strip()
             program.set_mode(cmd.removeprefix(b'switch ').decode())
+        elif b'track' in cmd:
+            cmd = cmd.strip()
+            program.set_track(cmd.removeprefix(b'track ').decode())
 
 
     while listener_run:
@@ -148,6 +151,7 @@ class BinaryProgram:
         self.boolean_detection_averager2 = st.Average(1)
         self.image_width = 0
         self.red_position = 0
+        # self.track = None
         self.tracking_mode = False
         self.last_direction = None
 
@@ -186,6 +190,11 @@ class BinaryProgram:
 
     def startup_beep(self):
         self.buzzfor(0.05)
+
+    def set_track(self, track):
+        if self.tracking_mode:
+            self.tracking_mode = False
+
 
     def btn1(self, channel, event):
         if event == KUP:
