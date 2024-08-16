@@ -18,6 +18,7 @@ import argparse
 import socket
 import threading
 import RPi.GPIO as GPIO
+import random
 
 # import yaml_handle
 import HiwonderSDK.Board as Board
@@ -311,11 +312,11 @@ class BinaryProgram:
                         self.chassis.set_velocity(100, 90, 0)
                         self.random_walk_time -= 1
                     elif self.random_turn_time:
-                        self.chassis.set_velocity(0, 90, math.random.randint(-1, 1) * 2)
+                        self.chassis.set_velocity(0, 90, random.randint(-1, 1) * 2)
                         self.random_turn_time -= 1
                     else:
-                        self.random_walk_time = math.random.randint(50, 250)
-                        self.random_turn_time = math.random.randint(50, 250)
+                        self.random_walk_time = random.randint(50, 250)
+                        self.random_turn_time = random.randint(50, 250)
                 else:    
                     if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
                         self.chassis.set_velocity(*detected_vel)
