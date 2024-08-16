@@ -302,10 +302,10 @@ class BinaryProgram:
                     self.last_direction = 'left'
                 
                 if not self.smoothed_detected2:
-                    if self.last_direction == 'left':
+                    if self.last_direction == 'left' and not self.smoothed_detected2:
                         self.chassis.set_velocity(50, 90, -0.5)
                         print("left")
-                    elif self.last_direction == 'right':
+                    elif self.last_direction == 'right' and not self.smoothed_detected2:
                         self.chassis.set_velocity(50, 90, 0.5)
                         print("right")
                 else:
