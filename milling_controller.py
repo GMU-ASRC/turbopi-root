@@ -319,6 +319,8 @@ class BinaryProgram:
                         self.random_walk_time = random.randint(50, 250)
                         self.random_turn_time = random.randint(50, 250)
                         self.turn_orientation = random.randint(-1, 1)
+                        while self.turn_orientation == 0:
+                            self.turn_orientation = random.randint(-1, 1)
                 else:    
                     if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
                         self.chassis.set_velocity(*detected_vel)
