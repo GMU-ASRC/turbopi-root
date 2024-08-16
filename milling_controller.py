@@ -295,17 +295,23 @@ class BinaryProgram:
         
         if not self.dry_run:
             if self.tracking_mode:
-                if self.red_position > 0:
+                if self.red_position > 0.15:
                     self.last_direction = 'right'
                 
-                elif self.red_position < 0:
+                elif self.red_position < -0.15:
                     self.last_direction = 'left'
+
+                elif self.red_position < 0.15 and self.red_position > -0.15:
+                    self.last_direction = 'straight'
                 
                 if not self.smoothed_detected2:
-                    if self.last_direction == 'left' and not self.smoothed_detected2:
+                    if self.last_direction == 'straight':
+                        self.chassis.set_velocity(50, 90, 0)
+                        print("straight")
+                    elif self.last_direction == 'left':
                         self.chassis.set_velocity(50, 90, -0.5)
                         print("left")
-                    elif self.last_direction == 'right' and not self.smoothed_detected2:
+                    elif self.last_direction == 'right':
                         self.chassis.set_velocity(50, 90, 0.5)
                         print("right")
                 else:
