@@ -78,6 +78,8 @@ def udp_listener(program):
         elif b'switch' in cmd:
             cmd = cmd.strip()
             program.set_mode(cmd.removeprefix(b'switch ').decode())
+        elif b'random' in cmd:
+            program.set_random_walk(not program.get_random_walk())
 
 
     while listener_run:
@@ -147,6 +149,10 @@ class BinaryProgram:
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(10)
 
+        self.random_walk = False
+        self.random_walk_time = 0
+        self.random_turn_time = 0
+
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
             "mill": [(100, 90, -0.5), (100, 90, 0.5)],
@@ -177,6 +183,12 @@ class BinaryProgram:
 
     def set_mode(self, mode):
         self.cur_mode = mode
+
+    def get_random_walk(self):
+        return self.random_walk
+    
+    def set_random_walk(self, value):
+        self.random_walk = value
 
     def startup_beep(self):
         self.buzzfor(0.05)
@@ -293,10 +305,22 @@ class BinaryProgram:
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
-            elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(*detected_vel)
             else:
-                self.chassis.set_velocity(*undetected_vel)
+                if self.random_walk:
+                    if self.random_walk_time:
+                        self.chassis.set_velocity(100, 90, 0)
+                        self.random_walk_time -= 1
+                    elif self.random_turn_time:
+                        self.chassis.set_velocity(0, 90, math.random.randint(-1, 1) * 2)
+                        self.random_turn_time -= 1
+                    else:
+                        self.random_walk_time = math.random.randint(50, 250)
+                        self.random_turn_time = math.random.randint(50, 250)
+                else:    
+                    if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
+                        self.chassis.set_velocity(*detected_vel)
+                    else:
+                        self.chassis.set_velocity(*undetected_vel)
  
 
 
