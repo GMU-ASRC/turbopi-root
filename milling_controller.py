@@ -296,13 +296,13 @@ class BinaryProgram:
         
         if not self.dry_run:
             if self.tracking_mode:
-                if self.red_position > 0.4:
+                if self.red_position > 0.3:
                     self.last_direction = 'right'
                 
-                elif self.red_position < -0.4:
+                elif self.red_position < -0.3:
                     self.last_direction = 'left'
 
-                elif self.red_position > -0.4 and self.red_position < 0.4 :
+                elif self.red_position > -0.3 and self.red_position < 0.3 :
                     self.last_direction = 'straight'
                 
                 if not self.smoothed_detected2:
