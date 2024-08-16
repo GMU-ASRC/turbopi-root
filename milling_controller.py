@@ -307,13 +307,13 @@ class BinaryProgram:
                 if not self.smoothed_detected2:
                     if self.last_direction == 'straight':
                         self.chassis.set_velocity(50, 90, 0)
-                        print("straight")
+                        print("straight " + self.red_position)
                     elif self.last_direction == 'left':
                         self.chassis.set_velocity(50, 90, -0.5)
-                        print("left")
+                        print("left " + self.red_position)
                     elif self.last_direction == 'right':
                         self.chassis.set_velocity(50, 90, 0.5)
-                        print("right")
+                        print("right " + self.red_position)
                 else:
                     self.chassis.set_velocity(50, 90, self.red_position * 2)  # Control robot movement function
                     print("tracking")
