@@ -153,6 +153,7 @@ class BinaryProgram:
         self.random_walk = False
         self.random_walk_time = 0
         self.random_turn_time = 0
+        self.turn_orientation = random.randint(-1, 1)
 
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
@@ -312,11 +313,12 @@ class BinaryProgram:
                         self.chassis.set_velocity(100, 90, 0)
                         self.random_walk_time -= 1
                     elif self.random_turn_time:
-                        self.chassis.set_velocity(0, 90, random.randint(-1, 1) * 2)
+                        self.chassis.set_velocity(0, 90, self.turn_orientation * 2)
                         self.random_turn_time -= 1
                     else:
                         self.random_walk_time = random.randint(50, 250)
                         self.random_turn_time = random.randint(50, 250)
+                        self.turn_orientation = random.randint(-1, 1)
                 else:    
                     if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
                         self.chassis.set_velocity(*detected_vel)
