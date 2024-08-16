@@ -292,8 +292,9 @@ class BinaryProgram:
         
         
         if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection               
-                self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
+            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
+                breakpoint()
+                self.chassis.set_velocity(100, 90, self.red_position * 4)  # Control robot movement function
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
