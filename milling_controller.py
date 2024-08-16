@@ -158,7 +158,7 @@ class BinaryProgram:
             "circle": [(50, 90, 0.5), (50, 90, 0.5)],
             "spin": [(0, 90, 2), (0, 90, 2)]
         }
-        self.guh = 0
+        
         self.cur_mode = "pause"
 
         self.show = self.can_show_windows()
@@ -292,21 +292,15 @@ class BinaryProgram:
         
         
         if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection  
-                if self.guh == 1:
-                    self.chassis.set_velocity(0, 90, -2)
-                    time.sleep(0.1)              
+            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection               
                 self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
-                self.guh = 0
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
             elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(*detected_vel)
-                self.guh = 1
+                self.chassis.set_velocity(*detected_vel)                
             else:
                 self.chassis.set_velocity(*undetected_vel)
-                self.guh = 1
  
 
 
