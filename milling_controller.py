@@ -147,6 +147,8 @@ class BinaryProgram:
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(1)
         self.red_position = 0
+        self.tracking_mode = False
+        self.last_direction = None
 
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
@@ -292,9 +294,24 @@ class BinaryProgram:
         
         
         if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
+            if self.tracking_mode:
+                if self.red_position > 0:
+                    self.last_direction = 'right'
+                
+                elif self.red_position < 0:
+                    self.last_direction = 'left'
+                
+                if not self.smoothed_detected2:
+                    if self.last_direction == 'left':
+                        self.chassis.set_velocity(100, 90, -1.5)
+                    elif self.last_direction == 'right':
+                        self.chassis.set_velocity(100, 90, 1.5)
+                else:
+                    self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
+
+            elif self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
                 # breakpoint()
-                self.chassis.set_velocity(100, 90, self.red_position * 1.5)  # Control robot movement function
+                self.tracking_mode = True
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
