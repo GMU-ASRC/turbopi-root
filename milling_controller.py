@@ -146,6 +146,7 @@ class BinaryProgram:
         self.detected = False
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(1)
+        self.image_width = 0
         self.red_position = 0
         self.tracking_mode = False
         self.last_direction = None
@@ -295,13 +296,13 @@ class BinaryProgram:
         
         if not self.dry_run:
             if self.tracking_mode:
-                if self.red_position > 0.15:
+                if self.red_position > 0.4:
                     self.last_direction = 'right'
                 
-                elif self.red_position < -0.15:
+                elif self.red_position < -0.4:
                     self.last_direction = 'left'
 
-                elif self.red_position < 0.15 and self.red_position > -0.15:
+                elif self.red_position > -0.4 and self.red_position < 0.4 :
                     self.last_direction = 'straight'
                 
                 if not self.smoothed_detected2:
@@ -373,11 +374,13 @@ class BinaryProgram:
         biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
         self.detected: bool = biggest_contour_area > 300
         self.detected2: bool = biggest_contour_area2 > 300  # did we detect something of interest?
+        # get the image width dynamically
+        self.image_width = frame_clean.shape[1]
         if self.detected2:
             M = cv2.moments(biggest_contour2)
             if M['m00'] != 0:
                 cx = int(M['m10']/M['m00'])
-            self.red_position = (cx / 320) - 0.5
+            self.red_position = (cx / self.image_width) - 0.5
 
         self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
         self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
