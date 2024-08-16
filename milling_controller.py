@@ -144,9 +144,13 @@ class BinaryProgram:
         self.fps = 0.0
         self.fps_averager = st.Average(10)
         self.detected = False
+        self.frame_size = 320
         self.boolean_detection_averager = st.Average(10)
         self.boolean_detection_averager2 = st.Average(10)
         self.red_position = 0
+
+        self.tracking_mode = False
+        self.last_direction = None'
 
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
@@ -290,13 +294,38 @@ class BinaryProgram:
             self.set_rgb('blue')
 
         if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, self.red_position * 2)  # Control robot movement function
+            if self.tracking_mode:
+                if self.red_position > 0.3:
+                    self.last_direction = 'right'
+                
+                elif self.red_position < -0.3:
+                    self.last_direction = 'left'
+
+                elif self.red_position > -0.3 and self.red_position < 0.3 :
+                    self.last_direction = 'straight'
+                
+                if not self.smoothed_detected2:
+                    if self.last_direction == 'straight':
+                        self.chassis.set_velocity(50, 90, 0)
+                        print("straight " + str(self.red_position))
+                    elif self.last_direction == 'left':
+                        self.chassis.set_velocity(50, 90, -0.5)
+                        print("left " + str(self.red_position))
+                    elif self.last_direction == 'right':
+                        self.chassis.set_velocity(50, 90, 0.5)
+                        print("right " + str(self.red_position))
+                else:
+                    self.chassis.set_velocity(50, 90, self.red_position * 2)  # Control robot movement function
+                    print("tracking")
+
+            elif self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
+                # breakpoint()
+                self.tracking_mode = True
                         # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
             # elif self.smoothed_detected and self.smoothed_detected2:
             #     self.chassis.set_velocity(100, 90, 0)
             elif self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(*detected_vel)
+                self.chassis.set_velocity(*detected_vel)                
             else:
                 self.chassis.set_velocity(*undetected_vel)
  
@@ -342,13 +371,15 @@ class BinaryProgram:
         # The output of color_contour_detection() is sorted highest to lowest
         biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
         biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
+        self.frame_size = frame_clean.shape[1]
+
         self.detected: bool = biggest_contour_area > 300
         self.detected2: bool = biggest_contour_area2 > 300  # did we detect something of interest?
         if self.detected2:
             M = cv2.moments(biggest_contour2)
             if M['m00'] != 0:
                 cx = int(M['m10']/M['m00'])
-            self.red_position = (cx / 320) - 0.5
+            self.red_position = (cx / self.frame_size) - 0.5
 
         self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
         self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
