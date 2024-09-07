@@ -21,7 +21,7 @@ except ImportError:
     warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
                   ImportWarning, stacklevel=2)
 
-DEFAULT_NETWORK_PATH = '/home/pi/networks/turbopi-milling_n10.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/milling-6n.json'
 
 
 def bool_to_one_hot(x: bool):
@@ -92,8 +92,8 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         v0, v1, w0, w1 = self.decode_output()
 
-        v = 56.65 * (v1 - v0)
-        w = 1.574 * (w1 - w0)
+        v = 25 * (v1 - v0)
+        w = 1 * (w1 - w0)
 
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
