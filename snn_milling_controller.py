@@ -98,8 +98,8 @@ class SNNMillingProgram(BinaryProgram):
         deadzone = st.Deadzone(20, center=20)
 
         v = (v1 - v0)
-        v = deadzone(st.fmap(v, -1, 1, -30, 30))
-        w = 0.5 * (w1 - w0)
+        v = deadzone(st.fmap(v, -1, 1, -100, 100))
+        w = 1.0 * (w1 - w0)
 
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
