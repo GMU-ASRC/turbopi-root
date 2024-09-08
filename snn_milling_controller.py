@@ -98,7 +98,7 @@ class SNNMillingProgram(BinaryProgram):
         deadzone = st.Deadzone(16)
 
         v = (v1 - v0)
-        v = deadzone(st.fmap(v, 0, 1, 15, 50))
+        v = deadzone(st.fmap(v, -1, 1, -50, 50))
         w = 0.5 * (w1 - w0)
 
         # print(v, w)
