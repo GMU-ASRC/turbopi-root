@@ -95,8 +95,10 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         v0, v1, w0, w1 = self.decode_output()
 
+        deadzone = st.Deadzone(16)
+
         v = (v1 - v0)
-        v = st.fmap(v, 0, 1, 10, 25)
+        v = deadzone(st.fmap(v, 0, 1, 15, 50))
         w = 0.5 * (w1 - w0)
 
         # print(v, w)
