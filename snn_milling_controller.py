@@ -5,6 +5,7 @@ import argparse
 import json
 import milling_controller
 from milling_controller import BinaryProgram, range_bgr
+import hiwonder_common.statistics_tools as st
 
 import casPYan
 import casPYan.ende.rate as ende
@@ -49,6 +50,8 @@ class SNNMillingProgram(BinaryProgram):
         self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
         self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
 
+        self.boolean_detection_averager = st.Average(2)
+
         self.network = None
         if isinstance(network, str):
             self.set_network(self.read_net_json(network))
@@ -92,8 +95,9 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         v0, v1, w0, w1 = self.decode_output()
 
-        v = 25 * (v1 - v0)
-        w = 1 * (w1 - w0)
+        v = (v1 - v0)
+        v = st.fmap(v, 0, 1, 10, 25)
+        w = 0.5 * (w1 - w0)
 
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
