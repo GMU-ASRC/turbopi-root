@@ -89,7 +89,7 @@ class SNNMillingProgram(BinaryProgram):
         self.buzzfor(.03, .05)
 
     def control(self):
-        spikes_per_node = self.get_input_spikes(b2oh(not self.detected))
+        spikes_per_node = self.get_input_spikes(b2oh(self.detected))
         self.apply_spikes(spikes_per_node)
         self.run(5)
         self.run(self.neuro_tpc)
