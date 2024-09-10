@@ -96,8 +96,7 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         # v0, v1, w0, w1 = self.decode_output()
         data = self.decode_output()
-        print(data)
-        data = [int(round(x)) for x in data]
+        data = [int(x) for x in data]
         # three bins. One for +v, -v, omega.
         v_mapping = [0.0, 0.141815737164, 0.157030957542]
         w_mapping = [0.0, 0.866455820451, 1.336446211942]
@@ -107,7 +106,7 @@ class SNNMillingProgram(BinaryProgram):
         # convert w from rad to deg
         w_rad = w
         w = math.degrees(w_rad)
-        fspd_power = math.copysign(st.fmap(abs(v), 0.123, 0.360, 35, 100), v)
+        fspd_power = math.copysign(st.fmap(abs(v), 0.123, 0.330, 35, 100), v)
         turn_power = math.copysign(st.fmap(abs(w), 51.42, 140.7, 0.2, 1), w)
         # print(data, v, w, fspd_power, turn_power)
 
