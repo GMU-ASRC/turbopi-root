@@ -3,6 +3,7 @@
 # from contextlib import ExitStack
 import argparse
 import json
+import math
 import milling_controller
 from milling_controller import BinaryProgram, range_bgr
 import hiwonder_common.statistics_tools as st
@@ -33,7 +34,7 @@ b2oh = bool_to_one_hot
 
 
 class SNNMillingProgram(BinaryProgram):
-    neuro_tpc = 10
+    neuro_tpc = 1
 
     def __init__(self,
         dry_run: bool = False,
@@ -93,15 +94,21 @@ class SNNMillingProgram(BinaryProgram):
         self.apply_spikes(spikes_per_node)
         self.run(5)
         self.run(self.neuro_tpc)
-        v0, v1, w0, w1 = self.decode_output()
+        # v0, v1, w0, w1 = self.decode_output()
+        data = self.decode_output()
 
-        v = 56.65 * (v1 - v0)
-        w = 1.574 * (w1 - w0)
+        v = 0.157030957542 * data[1] - 0.141815737164 * data[0]
+        w = 0.866455820451 * data[3] - 1.336446211942 * data[2]
+
+        # convert w from rad to deg
+        w_deg = math.degrees(w)
+        turn_power = math.copysign(st.fmap(abs(w), 59.6, 140.7, 0.333, 1), w)
+        fspd_power = math.copysign(st.fmap(abs(v), 0.262, 0.360, 50, 100), v)
 
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
         if not self.dry_run:
-            self.chassis.set_velocity(v, 90, w)
+            self.chassis.set_velocity(fspd_power, 90, turn_power)
 
 
 def get_parser(parser: argparse.ArgumentParser, subparsers=None):
