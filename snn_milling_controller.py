@@ -111,16 +111,16 @@ class SNNMillingProgram(BinaryProgram):
         data = self.decode_output()
         data = [int(x) for x in data]
         # three bins. One for +v, -v, omega.
-        v_mapping = [0.0, 0.141815737164, 0.157030957542]
-        w_mapping = [0.0, 0.866455820451, 1.336446211942]
+        v_mapping = [0.0, 0.2, 0.2]
+        w_mapping = [0.0, 1.2, 2.0]
         v = v_mapping[data[1]] - v_mapping[data[0]]
         w = w_mapping[data[3]] - w_mapping[data[2]]
 
         # convert w from rad to deg
-        w_rad = w
-        w = math.degrees(w_rad)
-        fspd_power = math.copysign(st.fmap(abs(v), 0.123, 0.330, 35, 100), v)
-        turn_power = math.copysign(st.fmap(abs(w), 51.42, 140.7, 0.2, 1), w)
+        # w_rad = w
+        # w = math.degrees(w_rad)
+        fspd_power = math.copysign(st.fmap(abs(v), 0.193, 0.276, 50, 100), v)
+        turn_power = math.copysign(st.fmap(abs(w), 1.33, 2.50, 0.5, 1), w)
         # print(data, v, w, fspd_power, turn_power)
 
         # print(v, w)
