@@ -34,8 +34,6 @@ b2oh = bool_to_one_hot
 
 
 class SNNMillingProgram(BinaryProgram):
-    neuro_tpc = 10
-
     def __init__(self,
         dry_run: bool = False,
         board=None,
@@ -67,7 +65,10 @@ class SNNMillingProgram(BinaryProgram):
         except BaseException as err:
             self.json_net = None
         else:
-            self.neuro_tpc = self.json_net['Associated_Data']['application']['proc_ticks']
+            try:
+                self.neuro_tpc = self.json_net['Associated_Data']['application']['proc_ticks']
+            except KeyError:
+                self.neuro_tpc = 10
             self.set_network(self.convert_json_to_caspyan(self.json_net))
 
     @staticmethod
