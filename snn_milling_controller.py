@@ -47,7 +47,7 @@ class SNNMillingProgram(BinaryProgram):
         super().__init__(dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
 
         self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
-        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 2.0]) for _ in range(4)]
+        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
 
         self.boolean_detection_averager = st.Average(2)
 
@@ -109,18 +109,15 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         # v0, v1, w0, w1 = self.decode_output()
         data = self.decode_output()
-        data = [int(x) for x in data]
         # three bins. One for +v, -v, omega.
-        v_mapping = [0.0, 0.141815737164, 0.157030957542]
-        w_mapping = [0.0, 0.866455820451, 1.336446211942]
-        v = v_mapping[data[1]] - v_mapping[data[0]]
-        w = w_mapping[data[3]] - w_mapping[data[2]]
+        v = 0.2 * (data[1] - data[0])
+        w = 2.0 * (data[3] - data[2])
 
         # convert w from rad to deg
-        w_rad = w
-        w = math.degrees(w_rad)
-        fspd_power = math.copysign(st.fmap(abs(v), 0.123, 0.330, 35, 100), v)
-        turn_power = math.copysign(st.fmap(abs(w), 51.42, 140.7, 0.2, 1), w)
+        # w_rad = w
+        # w = math.degrees(w_rad)
+        fspd_power = math.copysign(max(0, st.fmap(abs(v), 0.124, 0.276, 35, 100)), v)
+        turn_power = math.copysign(max(0, st.fmap(abs(w), 0.3, 2.6, 0.25, 2)), w)
         # print(data, v, w, fspd_power, turn_power)
 
         # print(v, w)
