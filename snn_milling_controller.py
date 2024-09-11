@@ -2,11 +2,11 @@
 # coding=utf8
 # from contextlib import ExitStack
 import argparse
-import json
 import math
 import milling_controller
 from milling_controller import BinaryProgram, range_bgr
 import hiwonder_common.statistics_tools as st
+import hiwonder_common.jsontools as jst
 
 import casPYan
 import casPYan.ende.rate as ende
@@ -54,17 +54,29 @@ class SNNMillingProgram(BinaryProgram):
         self.boolean_detection_averager = st.Average(2)
 
         self.network = None
-        if isinstance(network, str):
-            self.set_network(self.read_net_json(network))
+        self.json_net: dict | None = None
+        self.neuro_tpc: int = 0
+        self.load_network(network)
 
         if startup_beep:
             self.startup_beep()
 
+    def load_network(self, path_or_net):
+        try:
+            self.json_net = self.read_json(path_or_net)
+        except BaseException as err:
+            self.json_net = None
+        else:
+            self.neuro_tpc = self.json_net['Associated_Data']['application']['proc_ticks']
+            self.set_network(self.convert_json_to_caspyan(self.json_net))
+
     @staticmethod
-    def read_net_json(path: str):
-        with open(path) as f:
-            j = json.loads(f.read())
-        return casPYan.network.network_from_json(j)
+    def read_json(path_or_net) -> dict:
+        return jst.smartload(path_or_net)
+
+    @staticmethod
+    def convert_json_to_caspyan(network: dict):
+        return casPYan.network.network_from_json(network)
 
     def set_network(self, network):
         self.network = network
@@ -117,7 +129,7 @@ class SNNMillingProgram(BinaryProgram):
 
 
 def get_parser(parser: argparse.ArgumentParser, subparsers=None):
-    parser.add_argument('--network', type=str, default=DEFAULT_NETWORK_PATH)
+    parser.add_argument('--network', default=DEFAULT_NETWORK_PATH)
     return parser, subparsers
 
 
