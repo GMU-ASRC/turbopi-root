@@ -18,12 +18,15 @@ import argparse
 import socket
 import threading
 import RPi.GPIO as GPIO
+import platform
 
 # import yaml_handle
 import HiwonderSDK.Board as Board
 import HiwonderSDK.mecanum as mecanum
 
 import hiwonder_common.statistics_tools as st
+import hiwonder_common.project as project
+import hiwonder_common.env_tools as envt
 
 # typing
 from typing import Any
@@ -104,6 +107,8 @@ range_bgr = {
 
 
 class BinaryProgram:
+    name = "BinaryProgram"
+
     def __init__(self,
         dry_run: bool = False,
         board=None,
@@ -131,6 +136,10 @@ class BinaryProgram:
         self.load_lab_config(lab_cfg_path)
         self.load_servo_config(servo_cfg_path)
 
+        self.p: project.Project
+        self.p = project.make_default_project(args.project, args.root)
+        self.detection_log = project.Logger(self.p.root / f"io.tsv")
+
         self.board = Board if board is None else board
 
         self.servo1: int
@@ -141,6 +150,10 @@ class BinaryProgram:
         self.fps_averager = st.Average(10)
         self.detected = False
         self.boolean_detection_averager = st.Average(10)
+
+        self.start_time = time.time_ns()
+        self.moves_this_frame = []
+        self.history = []  # movement history
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -158,6 +171,33 @@ class BinaryProgram:
             self.startup_beep()
 
         self.exit_on_stop = exit_on_stop
+
+    def save_artifacts(self, evolver):
+        self.p.save_yaml_artifact("runinfo.yaml", self)
+        return True
+
+    def as_config_dict(self):
+        return {
+            "args": vars(self),
+            "env_info": self.get_env_info(),
+        }
+
+    def get_env_info(self):
+        d = {
+            "uname": platform.uname()._asdict(),
+            "python_version": platform.python_version(),
+            "cwd": os.getcwd(),
+            ".dependencies": {},
+        }
+        try:
+            d.update({
+                "branch": envt.get_branch_name('.'),
+                "HEAD": envt.git_hash('.'),
+                "status": [s.strip() for s in envt.git_porcelain('.').split('\n')],
+            })
+        except Exception:
+            d.update({"branch": None})
+        return d
 
     def startup_beep(self):
         self.buzzfor(0.05)
@@ -247,16 +287,31 @@ class BinaryProgram:
         self.board.RGB.setPixelColor(1, self.board.PixelColor(r, g, b))
         self.board.RGB.show()
 
+    def move(self, v, a, w):
+        # linear power [0, 100], direction angle [0, 360] (90 is forwards), yaw angular speed [-2,2]
+        if self.dry_run:
+            return
+        # move and log
+        self.moves_this_frame.append((v, a, w))
+        self.chassis.set_velocity(v, a, w)
+
     def control(self):
         self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
-        if not self.dry_run:
-            if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, -0.5)  # Control robot movement function
-                # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
-            else:
-                self.chassis.set_velocity(100, 90, 0.5)
+        if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
+            self.move(100, 90, -0.5)  # Control robot movement function
+        else:
+            self.move(100, 90, 0.5)
+
+    def control_wrapper(self):
+        self.control()
+        self.history.append([time.time_ns(), self.detected, self.smoothed_detected, self.moves_this_frame])
+
+    def log_detection(self):
+        t, detected, smoothed_detected, moves_this_frame = self.history[-1]
+        self.detection_log += f"{t}\t{int(detected)}\t{int(smoothed_detected)}\t{len(moves_this_frame)}\n"
 
     def main_loop(self):
+        self.moves_this_frame = []
         avg_fps = self.fps_averager(self.fps)  # feed the averager
         raw_img = self.camera.frame
         if raw_img is None:
@@ -293,9 +348,7 @@ class BinaryProgram:
 
         self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
 
-        # print(bool(smoothed_detected), smoothed_detected)
-
-        self.control()  # ################################
+        self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
         if self.detected:
@@ -419,6 +472,8 @@ class BinaryProgram:
 def get_parser(parser, subparsers=None):
     parser.add_argument("--dry_run", action='store_true')
     parser.add_argument("--startpaused", action='store_true')
+    parser.add_argument("project", nargs='?', help="Path or name of project directory. Include a slash to specify a path.")
+    parser.add_argument("--root", help="Path or name of project root directory.")
     return parser, subparsers
 
 
