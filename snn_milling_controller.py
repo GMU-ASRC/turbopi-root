@@ -110,7 +110,7 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         # v0, v1, w0, w1 = self.decode_output()
         data = self.decode_output()
-        data = [int(x) for x in data]
+        data = [int(round(x)) for x in data]
         # three bins. One for +v, -v, omega.
         v_mapping = [0.0, 100]
         w_mapping = [0.0, 0.5]
