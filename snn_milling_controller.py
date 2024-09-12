@@ -46,15 +46,16 @@ class SNNMillingProgram(BinaryProgram):
     ) -> None:
         super().__init__(dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
 
-        self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
-        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 2.0]) for _ in range(4)]
-
         self.boolean_detection_averager = st.Average(2)
 
         self.network = None
         self.json_net: dict | None = None
-        self.neuro_tpc: int = 0
+        self.neuro_tpc: int | None = None
         self.load_network(network)
+
+        assert self.neuro_tpc is not None
+        self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
+        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
 
         if startup_beep:
             self.startup_beep()
@@ -109,7 +110,7 @@ class SNNMillingProgram(BinaryProgram):
         self.run(self.neuro_tpc)
         # v0, v1, w0, w1 = self.decode_output()
         data = self.decode_output()
-        data = [int(x) for x in data]
+        data = [int(round(x)) for x in data]
         # three bins. One for +v, -v, omega.
         v_mapping = [0.0, 0.2, 0.2]
         w_mapping = [0.0, 1.2, 2.0]
