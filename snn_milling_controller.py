@@ -23,7 +23,7 @@ except ImportError:
     warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
                   ImportWarning, stacklevel=2)
 
-DEFAULT_NETWORK_PATH = '/home/pi/networks/turbopi-milling_n10.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/240911-heck_200_200_120_200.json'
 
 
 def bool_to_one_hot(x: bool):
