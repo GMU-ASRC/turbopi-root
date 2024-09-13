@@ -116,7 +116,8 @@ class BinaryProgram:
         servo_cfg_path=SERVO_CFG_PATH,
         pause=False,
         startup_beep=True,
-        exit_on_stop=True
+        exit_on_stop=True,
+        noproj=False,
     ) -> None:
         self._run = not pause
         self._stop_soon = False
@@ -133,12 +134,15 @@ class BinaryProgram:
 
         self.lab_data: dict[str, Any]
         self.servo_data: dict[str, Any]
-        self.load_lab_config(lab_cfg_path)
-        self.load_servo_config(servo_cfg_path)
+        self.load_lab_config(self.lab_cfg_path)
+        self.load_servo_config(self.servo_cfg_path)
 
-        self.p: project.Project
-        self.p = project.make_default_project(args.project, args.root)
-        self.detection_log = project.Logger(self.p.root / f"io.tsv")
+        if noproj:
+            self.p = self.detection_log = None
+        else:
+            self.p = project.make_default_project(args.project, args.root)
+            self.p.make_root_interactive()
+            self.detection_log = project.Logger(self.p.root / f"io.tsv")
 
         self.board = Board if board is None else board
 
@@ -172,13 +176,18 @@ class BinaryProgram:
 
         self.exit_on_stop = exit_on_stop
 
-    def save_artifacts(self, evolver):
+    def save_artifacts(self):
         self.p.save_yaml_artifact("runinfo.yaml", self)
         return True
 
     def as_config_dict(self):
+        names = ['preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'boolean_detection_averager', 'start_time',]
+        d = {key: getattr(self, key) for key in names}
         return {
-            "args": vars(self),
+            "self": {
+                'paused': self._run,
+                **d
+            },
             "env_info": self.get_env_info(),
         }
 
@@ -304,11 +313,13 @@ class BinaryProgram:
 
     def control_wrapper(self):
         self.control()
-        self.history.append([time.time_ns(), self.detected, self.smoothed_detected, self.moves_this_frame])
+        if self.detection_log:
+            self.history.append([time.time_ns(), self.detected, self.smoothed_detected, self.moves_this_frame])
+            self.log_detection()
 
     def log_detection(self):
         t, detected, smoothed_detected, moves_this_frame = self.history[-1]
-        self.detection_log += f"{t}\t{int(detected)}\t{int(smoothed_detected)}\t{len(moves_this_frame)}\n"
+        self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected))}\t{repr(moves_this_frame)}\n"
 
     def main_loop(self):
         self.moves_this_frame = []
@@ -397,6 +408,9 @@ class BinaryProgram:
             self.fps = 1 / frame_time
             # print(self.fps)
 
+        if self.p:
+            self.save_artifacts()
+
         errors = 0
         while errors < 5:
             if self._run:
@@ -474,6 +488,7 @@ def get_parser(parser, subparsers=None):
     parser.add_argument("--startpaused", action='store_true')
     parser.add_argument("project", nargs='?', help="Path or name of project directory. Include a slash to specify a path.")
     parser.add_argument("--root", help="Path or name of project root directory.")
+    parser.add_argument("--nolog", action='store_true')
     return parser, subparsers
 
 
@@ -482,5 +497,5 @@ if __name__ == '__main__':
     get_parser(parser)
     args = parser.parse_args()
 
-    program = BinaryProgram(dry_run=args.dry_run, pause=args.startpaused)
+    program = BinaryProgram(dry_run=args.dry_run, pause=args.startpaused, noproj=args.noproj)
     program.main()

@@ -54,7 +54,7 @@ def search_git_root(path, max_recursions=10):
     return _search_git_root(path, 0, max_recursions=max_recursions)
 
 
-def _search_git_root(path: pl.Path, recursions, max_recursions) -> pl.Path | None:
+def _search_git_root(path: pl.Path, recursions, max_recursions) -> pl.Path:
     if (path / ".git").is_dir():
         return path
     elif recursions > max_recursions:

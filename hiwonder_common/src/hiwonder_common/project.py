@@ -2,15 +2,13 @@
 
 __version__ = "0.0.1"
 
-import pathlib
-import shutil
+import os
+import re
 import sys
 import time
-import os
+import shutil
+import pathlib
 import yaml
-
-# typing
-from typing import override
 
 
 RE_CONTAINS_SEP = re.compile(r"[/\\]")
@@ -89,6 +87,9 @@ class File:
     def __str__(self):
         return str(self.path)
 
+    def as_config_dict(self):
+        return {'path': str(self)}
+
 
 class Logger(File):
     def __init__(self, path, firstcall=None):
@@ -96,7 +97,6 @@ class Logger(File):
         self._initialized = False
         self.firstcall = _NONE1 if firstcall is None else firstcall
 
-    @override
     def append(self, s):
         if not self._initialized:
             self.firstcall(self)
@@ -155,7 +155,6 @@ class Project(FolderlessProject):
         ensure_dir_exists(self.root, parents=create_parents)
 
     @property
-    @override
     def logfile_path(self):
         return self.root / LOGFILE_NAME
 
@@ -179,21 +178,23 @@ class Project(FolderlessProject):
             yaml.dump(get_config_dict(obj), f)
 
 
-def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project):
-    name_or_path = pathlib.Path(name_or_path)
+def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix=''):
     # don't destroy reference to root
-    root = root if root is DEFAULT_PROJECT_BASEPATH else pathlib.Path(root)
+    if root is not DEFAULT_PROJECT_BASEPATH:
+        root = DEFAULT_PROJECT_BASEPATH if root is None else pathlib.Path(root)
     if name_or_path is None:
         # no project name specified, so use the experiment name and timestamp
-        name = f"{time.strftime('%y%m%d-%H%M%S')}-{self.name}"
+        name = f"{time.strftime('%y%m%d-%H%M%S')}"
+        if suffix:
+            name += f"-{suffix}"
         path = root / name
-    elif RE_CONTAINS_SEP.search(name_or_path):  # project name contains a path separator
+    elif RE_CONTAINS_SEP.search(str(name_or_path)):  # project name contains a path separator
         name = pathlib.Path(name_or_path).name
         path = name_or_path
         if root is not DEFAULT_PROJECT_BASEPATH:
             print("WARNING: You seem to have specified a root path AND a full project path.")
             print(f"The root path will be ignored; path={path}")
     else:
-        name = name_or_path
+        name = pathlib.Path(name_or_path)
         path = root / name
     return cls(path=path, name=name)
