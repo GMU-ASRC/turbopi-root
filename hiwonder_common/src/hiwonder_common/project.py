@@ -8,6 +8,7 @@ import sys
 import time
 import shutil
 import pathlib
+import platform
 import yaml
 
 
@@ -178,7 +179,7 @@ class Project(FolderlessProject):
             yaml.dump(get_config_dict(obj), f)
 
 
-def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix=''):
+def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix='', hostname=True):
     # don't destroy reference to root
     if root is not DEFAULT_PROJECT_BASEPATH:
         root = DEFAULT_PROJECT_BASEPATH if root is None else pathlib.Path(root)
@@ -187,6 +188,10 @@ def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Projec
         name = f"{time.strftime('%y%m%d-%H%M%S')}"
         if suffix:
             name += f"-{suffix}"
+        if hostname is None:
+            name += f"-{platform.node()}"
+        elif hostname:
+            name += f"-{hostname}"
         path = root / name
     elif RE_CONTAINS_SEP.search(str(name_or_path)):  # project name contains a path separator
         name = pathlib.Path(name_or_path).name
