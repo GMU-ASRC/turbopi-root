@@ -110,6 +110,7 @@ class BinaryProgram:
     name = "BinaryProgram"
 
     def __init__(self,
+        args,
         dry_run: bool = False,
         board=None,
         lab_cfg_path=THRESHOLD_CFG_PATH,
@@ -497,5 +498,5 @@ if __name__ == '__main__':
     get_parser(parser)
     args = parser.parse_args()
 
-    program = BinaryProgram(dry_run=args.dry_run, pause=args.startpaused, noproj=args.noproj)
+    program = BinaryProgram(args, dry_run=args.dry_run, pause=args.startpaused, noproj=args.noproj)
     program.main()

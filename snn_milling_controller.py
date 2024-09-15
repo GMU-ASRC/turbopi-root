@@ -23,7 +23,7 @@ except ImportError:
     warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
                   ImportWarning, stacklevel=2)
 
-DEFAULT_NETWORK_PATH = '/home/pi/networks/240911-143155-best.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
 
 
 def bool_to_one_hot(x: bool):
@@ -35,6 +35,7 @@ b2oh = bool_to_one_hot
 
 class SNNMillingProgram(BinaryProgram):
     def __init__(self,
+        args,
         dry_run: bool = False,
         board=None,
         lab_cfg_path=milling_controller.THRESHOLD_CFG_PATH,
@@ -44,7 +45,7 @@ class SNNMillingProgram(BinaryProgram):
         startup_beep=True,
         exit_on_stop=True
     ) -> None:
-        super().__init__(dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
+        super().__init__(args, dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
 
         self.boolean_detection_averager = st.Average(2)
 
@@ -139,6 +140,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     program = SNNMillingProgram(
+        args,
         dry_run=args.dry_run,
         pause=args.startpaused,
         network=args.network,
