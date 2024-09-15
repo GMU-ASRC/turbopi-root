@@ -3,6 +3,7 @@
 # from contextlib import ExitStack
 import argparse
 import math
+import random
 import milling_controller
 from milling_controller import BinaryProgram, range_bgr
 import hiwonder_common.statistics_tools as st
@@ -57,6 +58,7 @@ class SNNMillingProgram(BinaryProgram):
         assert self.neuro_tpc is not None
         self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
         self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
+        self.rng = random.Random()
 
         if startup_beep:
             self.startup_beep()
@@ -115,8 +117,11 @@ class SNNMillingProgram(BinaryProgram):
         # three bins. One for +v, -v, omega.
         v_mapping = [0.0, 100]
         w_mapping = [0.0, 0.5]
-        v = v_mapping[data[1]] - v_mapping[data[0]]
+        v = v_mapping[1]
         w = w_mapping[data[3]] - w_mapping[data[2]]
+
+        if w == 0:
+            w = self.rng.choice([-1, 1]) * w_mapping[1]
 
         fspd_power = v
         turn_power = w
