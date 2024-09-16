@@ -179,7 +179,7 @@ class Project(FolderlessProject):
             yaml.dump(get_config_dict(obj), f)
 
 
-def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix='', hostname=True):
+def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix='', hostname=None):
     # don't destroy reference to root
     if root is not DEFAULT_PROJECT_BASEPATH:
         root = DEFAULT_PROJECT_BASEPATH if root is None else pathlib.Path(root)
