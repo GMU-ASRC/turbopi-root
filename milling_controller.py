@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 # coding=utf8
 # from contextlib import ExitStack
+
+# pyright: reportImplicitOverride=false
+
 import argparse
 import numpy as np
 

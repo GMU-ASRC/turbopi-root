@@ -27,7 +27,7 @@ import hiwonder_common.project as project
 import hiwonder_common.env_tools as envt
 
 # typing
-from typing import Any
+from typing import Any, Union
 
 import warnings
 try:
@@ -50,15 +50,21 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 UDP_PORT = 27272
 MAGIC = b'pi__F00#VML'
 
-listener_run = True
 
+class UDP_Listener:
+    def __init__(self, program):
+        self._run = True
+        self.app = program
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # create UDP socket
+        s.settimeout(1)
+        s.bind(('', UDP_PORT))
+        self.thread = threading.Thread(target=self.loop)
+        self.s = s
 
-def udp_listener(program):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # create UDP socket
-    s.settimeout(1)
-    s.bind(('', UDP_PORT))
+    def start(self):
+        self.thread.start()
 
-    def act(data, addr):
+    def act(self, data, addr):
         split = data.split(b"cmd:\n", 1)
         try:
             cmd = split[1]
@@ -66,25 +72,27 @@ def udp_listener(program):
             return
 
         if b'halt' in cmd or b'stop' in cmd:
-            global listener_run
-            listener_run = False
-            program._run = False
-            program._stop_soon = True
-            return True
+            self._run = False
+            self.app._run = False
+            self.app._stop_soon = True
+            return
         if b'unpause' in cmd or b'resume' in cmd:
-            program.resume()
+            self.app.resume()
         elif b'pause' in cmd:
-            program.pause()
+            self.app.pause()
 
-    while listener_run:
-        try:
-            data, addr = s.recvfrom(1024)  # wait for a packet
-        except socket.timeout:
-            continue
-        if data.startswith(MAGIC):
-            stop = act(data[len(MAGIC):], addr)
-            if stop:
-                return
+    def loop(self):
+        while self._run:
+            try:
+                data, addr = self.s.recvfrom(1024)  # wait for a packet
+            except socket.timeout:
+                continue
+            if data.startswith(MAGIC):
+                self.act(data[len(MAGIC):], addr)
+
+    def stop(self):
+        self._run = False
+
 
 
 range_bgr = {
@@ -100,10 +108,9 @@ class Program:
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
 
-    def __init__(self, args, post_init=True, board=None) -> None:
+    def __init__(self, args, post_init=True, board=None, name=None) -> None:
         self._run = not args.start_paused
         self._stop_soon = False
-        self.listener = None
 
         self.chassis = mecanum.MecanumChassis()
 
@@ -115,7 +122,8 @@ class Program:
         if args.nolog:
             self.p = self.detection_log = None
         else:
-            self.p = project.make_default_project(args.project, args.root)
+            name = self.__class__ if name is None else name
+            self.p = project.make_default_project(args.project, args.root, suffix=name)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
 
@@ -134,6 +142,9 @@ class Program:
 
         GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+        self.udp_listener = UDP_Listener(self)
+        self.udp_listener.start()
+
         self.buttonman = buttonman
         if buttonman:
             self.key1_debouncer = buttonman.ButtonDebouncer(KEY1_PIN, self.btn1, bouncetime=50)
@@ -142,8 +153,6 @@ class Program:
 
         if post_init:
             self.startup_beep()
-
-        self.exit_on_stop = getattr(args, 'exit_on_stop', True)
 
     def save_artifacts(self):
         self.p.save_yaml_artifact("runinfo.yaml", self)
@@ -217,17 +226,19 @@ class Program:
         self._run = True
         print("Program Resumed")
 
-    def stop(self):
-        global listener_run
+    def stop(self, exit=True, silent=False):
+        if not silent:
+            print(f"|> stop() {self.__class__} called <|")
+        self.udp_listener.stop()
         self._run = False
         self.chassis.set_velocity(0, 0, 0)
         self.set_rgb('None')
-        listener_run = False
-        print("Program Stop")
-        if buttonman:
-            buttonman.TaskManager.unregister()
-        if self.exit_on_stop:
-            sys.exit()  # exit the python script immediately
+        if exit:
+            if buttonman:
+                buttonman.TaskManager.unregister()
+            if not silent:
+                print("Exiting Program!")
+            sys.exit()  # exit the python script immediately by raising SystemExit
 
     @staticmethod
     def buzzer(value):
@@ -240,11 +251,15 @@ class Program:
         cls.buzzer(0)
         time.sleep(dtoff)
 
-    def set_rgb(self, color):
+    def set_rgb(self, color: Union[str, tuple, list]):
         # Set the RGB light color of the expansion board to match the color you want to track
-        if color not in range_bgr:
-            color = "black"
-        b, g, r = range_bgr[color]
+        # color can be a key in range_bgr OR an RGB tuple
+        if isinstance(color, str) or color is None:
+            if color not in range_bgr:
+                color = "black"
+            b, g, r = range_bgr[color]
+        else:
+            r, g, b = color
         self.board.RGB.setPixelColor(0, self.board.PixelColor(r, g, b))
         self.board.RGB.setPixelColor(1, self.board.PixelColor(r, g, b))
         self.board.RGB.show()
@@ -278,7 +293,7 @@ class Program:
     def main(self):
 
         def sigint_handler(sig, frame):
-            self.stop()
+            self.stop(True)
 
         def sigtstp_handler(sig, frame):
             self.pause()
@@ -293,9 +308,6 @@ class Program:
 
         self.init_move()
 
-        self.listener = threading.Thread(target=udp_listener, args=(self,))
-        self.listener.start()
-
         def loop():
             t_start = time.time_ns()
             self.main_loop()
@@ -308,30 +320,32 @@ class Program:
             self.save_artifacts()
 
         errors = 0
-        while errors < 5:
-            if self._run:
-                try:
-                    loop()
-                except KeyboardInterrupt:
-                    print('Received KeyboardInterrupt')
-                    self.exit_on_stop = True
-                    self.stop()
-                except Exception as err:
-                    errors += 1
-                    suffix = ('th', 'st', 'nd', 'rd', 'th')
-                    heck = "An" if errors == 1 else f"A {errors}{suffix[min(errors, 4)]}"
-                    print(heck + " error occurred but we're going to ignore it and try again...")
-                    print(err)
-                    self.exit_on_stop = False
-                    self.stop()
-                    raise
-            else:
+        while 1:
+            if not self._run:
                 self.kill_motors()
                 time.sleep(0.01)
+                continue
             if self._stop_soon:
                 self.stop()
-
-        self.stop()
+            try:
+                loop()
+            except KeyboardInterrupt:
+                print('Received KeyboardInterrupt')
+                self.stop(True)
+            except SystemExit:
+                print("Exiting...")
+                raise
+            except Exception as err:
+                errors += 1
+                if errors > 5:
+                    print(f"{errors} errors have ocurred! Too many to ignore. Raising...")
+                    self.stop(False)
+                    raise
+                suffix = ('th', 'st', 'nd', 'rd', 'th')
+                heck = "An" if errors == 1 else f"A {errors}{suffix[min(errors, 4)]}"
+                print(heck + " error occurred but we're going to ignore it and try again...")
+                print(err)
+                print('\n' + '=' * 30)
 
 
 def get_parser(parser, subparsers=None):
@@ -351,5 +365,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     get_parser(parser)
     args = parser.parse_args()
-    program = Program(args)
-    main(args, program)
+    app = Program(args)
+    main(args, app)

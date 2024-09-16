@@ -85,20 +85,14 @@ class CameraBinaryProgram(Program):
     def load_lab_config(self, threshold_cfg_path):
         self.lab_data = self.get_yaml_data(threshold_cfg_path)
 
-    def stop(self):
-        global listener_run
-        self._run = False
-        self.chassis.set_velocity(0, 0, 0)
+    def stop(self, exit=True, silent=False):
         if self.camera:
             self.camera.camera_close()
         self.set_rgb('None')
         cv2.destroyAllWindows()
-        listener_run = False
-        print("ColorDetect Stop")
-        if self.buttonman:
-            self.buttonman.TaskManager.unregister()
-        if self.exit_on_stop:
-            sys.exit()  # exit the python script immediately
+        super().stop(False, True)
+        if exit:
+            Program.stop(self, True, silent)
 
     def control(self):
         self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
