@@ -1,5 +1,7 @@
 # project file management for recording run information
 
+# pyright: reportImplicitOverride=false
+
 __version__ = "0.0.1"
 
 import os

@@ -100,8 +100,8 @@ class Program:
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
 
-    def __init__(self, args, post_init=True) -> None:
-        self._run = not args.pause
+    def __init__(self, args, post_init=True, board=None) -> None:
+        self._run = not args.start_paused
         self._stop_soon = False
         self.listener = None
 
@@ -112,14 +112,14 @@ class Program:
         self.servo_data: dict[str, Any]
         self.load_servo_config(self.servo_cfg_path)
 
-        if args.noproj:
+        if args.nolog:
             self.p = self.detection_log = None
         else:
             self.p = project.make_default_project(args.project, args.root)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
 
-        self.board = Board if args.board is None else args.board
+        self.board = Board if board is None else board
 
         self.servo1: int
         self.servo2: int
@@ -143,7 +143,7 @@ class Program:
         if post_init:
             self.startup_beep()
 
-        self.exit_on_stop = args.exit_on_stop
+        self.exit_on_stop = getattr(args, 'exit_on_stop', True)
 
     def save_artifacts(self):
         self.p.save_yaml_artifact("runinfo.yaml", self)
@@ -316,7 +316,7 @@ class Program:
                     print('Received KeyboardInterrupt')
                     self.exit_on_stop = True
                     self.stop()
-                except BaseException as err:
+                except Exception as err:
                     errors += 1
                     suffix = ('th', 'st', 'nd', 'rd', 'th')
                     heck = "An" if errors == 1 else f"A {errors}{suffix[min(errors, 4)]}"
@@ -336,7 +336,7 @@ class Program:
 
 def get_parser(parser, subparsers=None):
     parser.add_argument("--dry_run", action='store_true')
-    parser.add_argument("--startpaused", action='store_true')
+    parser.add_argument("--start_paused", action='store_true')
     parser.add_argument("project", nargs='?', help="Path or name of project directory. Include a slash to specify a path.")
     parser.add_argument("--root", help="Path or name of project root directory.")
     parser.add_argument("--nolog", action='store_true')
@@ -344,13 +344,12 @@ def get_parser(parser, subparsers=None):
 
 
 def main(args, program):
-    args.exit_on_stop = True
-    program.main(args)
+    program.main()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     get_parser(parser)
     args = parser.parse_args()
-    program = Program(dry_run=args.dry_run, pause=args.startpaused, noproj=args.noproj)
+    program = Program(args)
     main(args, program)

@@ -10,12 +10,14 @@ import math
 import operator
 import argparse
 import numpy as np
-import Camera  # type: ignore
 import cv2
 
 import hiwonder_common.statistics_tools as st
 from hiwonder_common.program import Program, main, range_bgr
-import hiwonder_common.program
+import hiwonder_common.program  # modifies PATH
+
+# import after path modification
+import Camera  # type: ignore
 
 # typing
 from typing import Any
@@ -34,6 +36,7 @@ class CameraBinaryProgram(Program):
     dict_names = dict_names
 
     def __init__(self, args, post_init=True) -> None:
+        super().__init__(args, post_init=False)
         self.preview_size = (640, 480)
 
         self.target_color = ('green')
@@ -62,8 +65,6 @@ class CameraBinaryProgram(Program):
 
         if post_init:
             self.startup_beep()
-
-        self.exit_on_stop = args.exit_on_stop
 
     @staticmethod
     def can_show_windows():
@@ -231,5 +232,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser, subparsers = get_parser(parser)
     args = parser.parse_args()
-    program = Program(dry_run=args.dry_run, pause=args.startpaused, noproj=args.noproj)
+    program = Program(args)
     main(args, program)
