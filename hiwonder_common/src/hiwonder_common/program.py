@@ -122,7 +122,10 @@ class Program:
         if args.nolog:
             self.p = self.detection_log = None
         else:
-            name = self.__class__ if name is None else name
+            if name is None and self.name:
+                name = self.name
+            else:
+                name = self.__name__
             self.p = project.make_default_project(args.project, args.root, suffix=name)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
@@ -160,7 +163,7 @@ class Program:
         return True
 
     def as_config_dict(self):
-        d = {key: getattr(self, key) for key in self.dict_names}
+        d = {key: project.get_config_dict(getattr(self, key)) for key in self.dict_names}
         return {
             "self": {
                 'paused': self._run,
@@ -168,6 +171,9 @@ class Program:
             },
             "env_info": self.get_env_info(),
         }
+
+    def as_dict(self):
+        return self.as_config_dict()
 
     def get_env_info(self):
         d = {
@@ -288,7 +294,7 @@ class Program:
         self.detection_log += f"{t}\t{repr(moves_this_frame)}\n"
 
     def log_detection_header(self):
-        self.detection_log += f"unix timestamp\tmoves [(v, d, w), ...]\n"
+        self.detection_log += f"time_ns\tmoves [(v, d, w), ...]\n"
 
     def main_loop(self):
         self.moves_this_frame = []

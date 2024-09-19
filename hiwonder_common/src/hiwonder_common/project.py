@@ -20,6 +20,9 @@ LOGFILE_NAME = "running.log"
 RUNINFO_NAME = "runinfo.yaml"
 ARTIFACTS_DIR_NAME = "artifacts"
 
+if hasattr(os, 'geteuid') and os.geteuid() == 0:
+    os.umask(0o000)
+
 
 def _NONE1(x):
     pass
@@ -49,9 +52,11 @@ def get_dict(obj):
     if isinstance(obj, dict):
         return obj
     if isinstance(obj, list):
-        return {i: get_dict(obj[i]) for i in range(len(obj))}
+        return {i: get_dict(val) for i, val in enumerate(obj)}
+    if hasattr(obj, "__dict__"):
+        return vars(obj)
 
-    return vars(obj)
+    return obj
 
 
 def get_config_dict(obj):
@@ -91,6 +96,9 @@ class File:
         return str(self.path)
 
     def as_config_dict(self):
+        return self.as_dict()
+
+    def as_dict(self):
         return {'path': str(self)}
 
 
@@ -102,9 +110,14 @@ class Logger(File):
 
     def append(self, s):
         if not self._initialized:
-            self.firstcall(self)
             self._initialized = True
+            self.firstcall()
         super().append(s)
+
+    def as_dict(self):
+        d = super().as_dict()
+        d.update({'firstcall': repr(self.firstcall)})
+        return d
 
 
 class FolderlessProject:
@@ -177,8 +190,9 @@ class Project(FolderlessProject):
 
     def save_yaml_artifact(self, name, obj):
         artifacts = pathlib.Path(ARTIFACTS_DIR_NAME)
-        with open(self.ensure_file_parents(artifacts / name), "w") as f:
-            yaml.dump(get_config_dict(obj), f)
+        with open(self.ensure_file_parents(artifacts / name), "w", ) as f:
+            dat = get_config_dict(obj)
+            yaml.dump(dat, f)
 
 
 def make_default_project(name_or_path, root=DEFAULT_PROJECT_BASEPATH, cls=Project, suffix='', hostname=None):
