@@ -35,8 +35,8 @@ class CameraBinaryProgram(Program):
     name = "BinaryProgram"
     dict_names = dict_names
 
-    def __init__(self, args, post_init=True) -> None:
-        super().__init__(args, post_init=False)
+    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
+        super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
         self.preview_size = (640, 480)
 
         self.target_color = ('green')

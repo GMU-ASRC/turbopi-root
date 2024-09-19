@@ -108,7 +108,7 @@ class Program:
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
 
-    def __init__(self, args, post_init=True, board=None, name=None) -> None:
+    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         self._run = not args.start_paused
         self._stop_soon = False
 
@@ -119,7 +119,7 @@ class Program:
         self.servo_data: dict[str, Any]
         self.load_servo_config(self.servo_cfg_path)
 
-        if args.nolog:
+        if disable_logging:
             self.p = self.detection_log = None
         else:
             if name is None and self.name:
@@ -375,5 +375,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     get_parser(parser)
     args = parser.parse_args()
-    app = Program(args)
+    app = Program(args, disable_logging=args.nolog)
     main(args, app)
