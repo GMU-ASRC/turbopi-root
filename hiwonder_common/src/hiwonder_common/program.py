@@ -126,6 +126,7 @@ class Program:
             self.p = project.make_default_project(args.project, args.root, suffix=name)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
+            self.detection_log.firstcall = self.log_detection_header
 
         self.board = Board if board is None else board
 
@@ -285,6 +286,9 @@ class Program:
     def log_detection(self):
         t, moves_this_frame = self.history[-1]
         self.detection_log += f"{t}\t{repr(moves_this_frame)}\n"
+
+    def log_detection_header(self):
+        self.detection_log += f"unix timestamp\tmoves [(v, d, w), ...]\n"
 
     def main_loop(self):
         self.moves_this_frame = []

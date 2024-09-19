@@ -111,6 +111,10 @@ class CameraBinaryProgram(Program):
         t, detected, smoothed_detected, moves_this_frame = self.history[-1]
         self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected))}\t{repr(moves_this_frame)}\n"
 
+    def log_detection_header(self):
+        n = self.boolean_detection_averager.n
+        self.detection_log += f"unix time\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
+
     def main_loop(self):
         self.moves_this_frame = []
         avg_fps = self.fps_averager(self.fps)  # feed the averager
