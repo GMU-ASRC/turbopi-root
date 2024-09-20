@@ -101,7 +101,7 @@ class SNNMillingProgram(BinaryProgram):
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
         if not self.dry_run:
-            self.chassis.set_velocity(v, 90, w)
+            self.chassis.set_velocity(v, 50, w)
 
 
 def get_parser(parser: argparse.ArgumentParser, subparsers=None):
