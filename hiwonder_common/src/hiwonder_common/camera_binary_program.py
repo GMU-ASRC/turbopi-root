@@ -230,5 +230,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser, subparsers = get_parser(parser)
     args = parser.parse_args()
-    program = Program(args)
+    program = Program(args, disable_logging=args.nolog)
     main(args, program)
