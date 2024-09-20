@@ -3,9 +3,12 @@
 # from contextlib import ExitStack
 import argparse
 import math
-import milling_controller
-from milling_controller import BinaryProgram, range_bgr
+import random
+import numpy as np
+
 import hiwonder_common.statistics_tools as st
+from hiwonder_common.camera_binary_program import range_bgr
+import hiwonder_common.camera_binary_program as camera_binary_program
 import hiwonder_common.jsontools as jst
 
 import casPYan
@@ -14,16 +17,7 @@ import casPYan.ende.rate as ende
 # typing
 from typing import Any
 
-import warnings
-try:
-    import buttonman as buttonman
-    buttonman.TaskManager.register_stoppable()
-except ImportError:
-    buttonman = None
-    warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
-                  ImportWarning, stacklevel=2)
-
-DEFAULT_NETWORK_PATH = '/home/pi/networks/240911-015531-best.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
 
 
 def bool_to_one_hot(x: bool):
@@ -33,37 +27,32 @@ def bool_to_one_hot(x: bool):
 b2oh = bool_to_one_hot
 
 
-class SNNMillingProgram(BinaryProgram):
+class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
     def __init__(self,
-        dry_run: bool = False,
-        board=None,
-        lab_cfg_path=milling_controller.THRESHOLD_CFG_PATH,
-        servo_cfg_path=milling_controller.SERVO_CFG_PATH,
+        args,
+        post_init=True, board=None, name=None, disable_logging=False,
         network=None,
-        pause=False,
-        startup_beep=True,
-        exit_on_stop=True
     ) -> None:
-        super().__init__(dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
+        super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
 
         self.boolean_detection_averager = st.Average(2)
 
         self.network = None
         self.json_net: dict | None = None
-        self.neuro_tpc: int | None = None
+        self.neuro_tpc: int = None  # type: ignore[reportAttributeAccessIssue]
         self.load_network(network)
 
         assert self.neuro_tpc is not None
         self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
         self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
 
-        if startup_beep:
+        if post_init:
             self.startup_beep()
 
     def load_network(self, path_or_net):
         try:
             self.json_net = self.read_json(path_or_net)
-        except BaseException as err:
+        except Exception as err:
             self.json_net = None
         else:
             try:
@@ -134,13 +123,9 @@ def get_parser(parser: argparse.ArgumentParser, subparsers=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser, subparsers = milling_controller.get_parser(parser)
+    parser, subparsers = camera_binary_program.get_parser(parser)
     parser, subparsers = get_parser(parser)
     args = parser.parse_args()
 
-    program = SNNMillingProgram(
-        dry_run=args.dry_run,
-        pause=args.startpaused,
-        network=args.network,
-    )
+    program = SNNMillingProgram(args,)
     program.main()
