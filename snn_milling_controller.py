@@ -40,7 +40,7 @@ class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
         self.network = None
         self.json_net: dict | None = None
         self.neuro_tpc: int = None  # type: ignore[reportAttributeAccessIssue]
-        self.load_network(network)
+        self.load_network(args.network)
 
         assert self.neuro_tpc is not None
         self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
@@ -50,16 +50,13 @@ class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
             self.startup_beep()
 
     def load_network(self, path_or_net):
+        self.json_net = self.read_json(path_or_net)
         try:
-            self.json_net = self.read_json(path_or_net)
-        except Exception as err:
-            self.json_net = None
-        else:
-            try:
-                self.neuro_tpc = self.json_net['Associated_Data']['application']['proc_ticks']
-            except KeyError:
-                self.neuro_tpc = 10
-            self.set_network(self.convert_json_to_caspyan(self.json_net))
+            self.neuro_tpc = self.json_net['Associated_Data']['application']['encoder_ticks']
+        except KeyError:
+            self.neuro_tpc = 10
+            print(f"WARNING: Could not read `encoder_ticks` from network. Using default value of {self.neuro_tpc}")
+        self.set_network(self.convert_json_to_caspyan(self.json_net))
 
     @staticmethod
     def read_json(path_or_net) -> dict:
