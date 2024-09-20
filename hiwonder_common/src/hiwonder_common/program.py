@@ -58,7 +58,7 @@ class UDP_Listener:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # create UDP socket
         s.settimeout(1)
         s.bind(('', UDP_PORT))
-        self.thread = threading.Thread(target=self.loop)
+        self.thread = threading.Thread(target=self.loop, daemon=True)
         self.s = s
 
     def start(self):
@@ -92,6 +92,13 @@ class UDP_Listener:
 
     def stop(self):
         self._run = False
+
+    def spin_until_dead(self, timeout=3):
+        t_start = time.time()
+        while time.time() < t_start + timeout and self.thread.is_alive():
+            time.sleep(0.01)
+        if self.thread.is_alive():
+            print("Timed out wating for UDP Listener to die.")
 
 
 
@@ -234,6 +241,7 @@ class Program:
         print("Program Resumed")
 
     def stop(self, exit=True, silent=False):
+        self._stop_soon = True
         if not silent:
             print(f"|> stop() {self.__class__} called <|")
         self.udp_listener.stop()
@@ -243,9 +251,8 @@ class Program:
         if exit:
             if buttonman:
                 buttonman.TaskManager.unregister()
-            if not silent:
-                print("Exiting Program!")
-            sys.exit()  # exit the python script immediately by raising SystemExit
+            self.udp_listener.spin_until_dead()
+            raise SystemExit  # exit the python script immediately by raising SystemExit
 
     @staticmethod
     def buzzer(value):
@@ -303,6 +310,7 @@ class Program:
     def main(self):
 
         def sigint_handler(sig, frame):
+            print("sigint stop called")
             self.stop(True)
 
         def sigtstp_handler(sig, frame):
@@ -331,19 +339,19 @@ class Program:
 
         errors = 0
         while 1:
-            if not self._run:
-                self.kill_motors()
-                time.sleep(0.01)
-                continue
-            if self._stop_soon:
-                self.stop()
             try:
+                if self._stop_soon:
+                    self.stop()
+                if not self._run:
+                    self.kill_motors()
+                    time.sleep(0.01)
+                    continue
                 loop()
             except KeyboardInterrupt:
                 print('Received KeyboardInterrupt')
                 self.stop(True)
             except SystemExit:
-                print("Exiting...")
+                # print("Raising final SystemExit")
                 raise
             except Exception as err:
                 errors += 1
