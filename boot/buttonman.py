@@ -437,7 +437,7 @@ class ActionMachine(statemachine.StateMachine):
                 s.setPixelColor(i, Board.PixelColor(r, g, b))
             Board.RGB.show()
             s.show()
-        except BaseException:
+        except Exception:
             pass
 
     def do_3H(self):
