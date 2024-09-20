@@ -48,4 +48,5 @@ if __name__ == '__main__':
     disable_logging = args.nolog or not args.enable_logging
 
     app = ConstantSpeedProgram(args, disable_logging=args.nolog)
+    print("CTRL+C to stop and exit.")
     program.main(args, app)
