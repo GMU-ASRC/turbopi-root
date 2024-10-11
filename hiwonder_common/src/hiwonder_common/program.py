@@ -112,6 +112,7 @@ range_bgr = {
 
 
 class Program:
+    UDP_LISTENER_CLASS = UDP_Listener
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
 
@@ -153,7 +154,7 @@ class Program:
 
         GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.udp_listener = UDP_Listener(self)
+        self.udp_listener = self.UDP_LISTENER_CLASS(self)
         self.udp_listener.start()
 
         self.buttonman = buttonman

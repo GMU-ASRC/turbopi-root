@@ -4,85 +4,165 @@
 
 # pyright: reportImplicitOverride=false
 
+import time
+import random
+import socket
 import argparse
+
+import cv2
 import numpy as np
 
+import hiwonder_common.program
 import hiwonder_common.statistics_tools as st
 from hiwonder_common.camera_binary_program import range_bgr
 import hiwonder_common.camera_binary_program as camera_binary_program
 
+SPECIAL_FUNCTION = "__function__"
+dict_names = camera_binary_program.dict_names
+dict_names -= {"target_color", "boolean_detection_averager"}
+dict_names |= {
+    "frn_boolean_detection_averager",
+    "foe_boolean_detection_averager",
+    "frn_detect_color",
+    "foe_detect_color",
+    "random_walk_time",
+    "random_turn_time",
+    "turn_orientation",
+}
+
+
+class UDP_Listener(hiwonder_common.program.UDP_Listener):
+    def act(self, data, addr):
+        split = data.split(b"cmd:\n", 1)
+        try:
+            cmd = split[1]
+        except IndexError:
+            return
+
+        if b"halt" in cmd or b"stop" in cmd:
+            self._run = False
+            self.app._run = False
+            self.app._stop_soon = True
+            return
+        if b"unpause" in cmd or b"resume" in cmd:
+            self.app.resume()
+        elif b"pause" in cmd:
+            self.app.pause()
+        elif b"switch" in cmd:
+            program.mode = cmd.strip().removeprefix(b"switch ").decode().strip()
+        elif b"random" in cmd:
+            program.random_walk = not program.random_walk
+
 
 class SandmanProgram(camera_binary_program.CameraBinaryProgram):
+    UDP_LISTENER_CLASS = UDP_Listener
     name = "SandmanProgram"
+    dict_names = dict_names
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
-        self.boolean_detection_averager = st.Average(10)
-        self.boolean_detection_averager2 = st.Average(10)
 
-        self.random_walk = False
+        self.frn_boolean_detection_averager = st.Average(10)
+        self.foe_boolean_detection_averager = st.Average(10)
+
+        self.frn_detect_color = "green"
+        self.foe_detect_color = "red"
+
         self.random_walk_time = 0
         self.random_turn_time = 0
         self.turn_orientation = random.randint(-1, 1)
 
         self.control_modes = {
-            "pause": [(0, 0, 0), (0, 0, 0)],
-            "mill": [(100, 90, -0.5), (100, 90, 0.5)],
-            "follow_leader": [(75, 90, 0),(75, 90, -0.5)],
-            "disperse": [(100, 90, -2),(100, 90, 0)],
-            "diffuse": [(50, 270, 0),(0, 270, 2)],
-            "straight": [(50, 90, 0), (50, 90, 0)],
-            "circle": [(50, 90, 0.5), (50, 90, 0.5)]
+            'idle': [(0, 0, 0), (0, 0, 0)],
+            'mill': [(100, 90, -0.5), (100, 90, 0.5)],
+            'follow_leader': [(75, 90, 0), (75, 90, -0.5)],
+            'disperse': [(100, 90, -2), (100, 90, 0)],
+            'diffuse': [(50, 270, 0), (0, 270, 2)],
+            'straight': [(50, 90, 0), (50, 90, 0)],
+            'circle': [(50, 90, 0.5), (50, 90, 0.5)],
+            'random': [(100, 90, 0), self.random_walk],
         }
-        self.mode = "pause"
+        self._mode = None
+        self.mode = 'idle' if args.mode is None else args.mode
+
+        if post_init:
+            self.startup_beep()
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode):
+        if mode not in self.control_modes:
+            print(f"invalid mode: {mode}")
+        else:
+            self._mode = mode
+
+    def control_wrapper(self):
+        self.control()
+        if self.detection_log:
+            self.history.append([
+                time.time_ns(),
+                self.frn_detected,
+                self.smoothed_frn_detected,
+                self.foe_detected,
+                self.smoothed_foe_detected,
+                self.moves_this_frame,
+            ])
+            self.log_detection()
+
+    def log_detection(self):
+        r = self.history[-1]
+        self.detection_log += f"{r[0]}\t{int(r[1])}\t{int(bool(r[2]))}\t{repr(r[3])}\t{repr(r[4])}\t{repr(r[5])}\n"
+
+    def log_detection_header(self):
+        n = self.boolean_detection_averager.n
+        self.detection_log += f"time_ns\tfriend_detected [0, 1]\tfriend_smoothed_detected [0, 1] ({n})\tfoe_detected [0, 1]\tfoe_smoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
+
+    def random_walk(self):
+        if self.random_walk_time:
+            self.move(100, 90, 0)
+            self.random_walk_time -= 1
+        elif self.random_turn_time:
+            self.move(0, 90, self.turn_orientation * 2)
+            self.random_turn_time -= 1
+        else:
+            self.random_walk_time = random.randint(50, 250)
+            self.random_turn_time = random.randint(50, 250)
+            self.turn_orientation = random.randint(-1, 1)
+            while self.turn_orientation == 0:
+                self.turn_orientation = random.randint(-1, 1)
 
     def control(self):
-        if mode in self.control_modes.keys():
-            self.cur_mode = mode
-
-        print(self.cur_mode)
-        try:
-            velocities = self.control_modes[self.cur_mode]
-        except KeyError:
-            velocities = self.control_modes['pause']
-            print("Invalid mode, pausing.")
-        detected_vel = velocities[0]
-        undetected_vel = velocities[1]
-
-        # self.set_rgb ('green' if bool(self.smoothed_detected) or bool(self.smoothed_detected2) else 'blue')
-        if self.smoothed_detected2:
-            self.set_rgb('red')
-        elif self.smoothed_detected:
-            self.set_rgb('green')
+        if self.smoothed_foe_detected:
+            self.set_rgb("red")
+        elif self.smoothed_frn_detected:
+            self.set_rgb("green")
         else:
-            self.set_rgb('blue')
+            self.set_rgb("blue")
 
-        if not self.dry_run:
-            if self.smoothed_detected2:  # smoothed_detected is a low-pass filtered detection
-                self.chassis.set_velocity(100, 90, 0)  # Control robot movement function
-                        # linear speed 50 (0~100), direction angle 90 (0~360), yaw angular speed 0 (-2~2)
-            # elif self.smoothed_detected and self.smoothed_detected2:
-            #     self.chassis.set_velocity(100, 90, 0)
+        def move_or_call(move_or_function):
+            if callable(move_or_function):
+                move_or_function()
+                return
+            if isinstance(move_or_function, (list, tuple)):
+                self.move(*move_or_function)
+
+        if self.mode not in self.control_modes:
+            return  # ======================================
+        actions = self.control_modes[self.mode]
+        if isinstance(actions, (list, tuple)) and len(actions) == 2:
+            # mode is a simple binary mode
+            detected_action, nodetect_action = actions
+            if self.smoothed_foe_detected:  # smoothed_detected is a low-pass filtered detection
+                move_or_call(detected_action)
             else:
-                if self.random_walk:
-                    if self.random_walk_time:
-                        self.chassis.set_velocity(100, 90, 0)
-                        self.random_walk_time -= 1
-                    elif self.random_turn_time:
-                        self.chassis.set_velocity(0, 90, self.turn_orientation * 2)
-                        self.random_turn_time -= 1
-                    else:
-                        self.random_walk_time = random.randint(50, 250)
-                        self.random_turn_time = random.randint(50, 250)
-                        self.turn_orientation = random.randint(-1, 1)
-                        while self.turn_orientation == 0:
-                            self.turn_orientation = random.randint(-1, 1)
-                else:    
-                    if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-                        self.chassis.set_velocity(*detected_vel)
-                    else:
-                        self.chassis.set_velocity(*undetected_vel)
-    
+                move_or_call(nodetect_action)
+        elif callable(actions):
+            actions()  # this handles what to do regardless of if detected or not
+
+
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
         raw_img = self.camera.frame
@@ -102,63 +182,55 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         # If we're calling target_contours() multiple times, some args will
         # be the same. Let's put them here to re-use them.
         contour_args = {
-            'open_kernel': np.ones((3, 3), np.uint8),
-            'close_kernel': np.ones((3, 3), np.uint8),
+            "open_kernel": np.ones((3, 3), np.uint8),
+            "close_kernel": np.ones((3, 3), np.uint8),
         }
         # extract the LAB threshold
-        threshold = (tuple(self.lab_data[self.target_color][key]) for key in ['min', 'max'])
-        threshold2 = (tuple(self.lab_data[self.target_color2][key]) for key in ['min', 'max'])
-        # breakpoint()
-        # run contour detection
-        target_contours = self.color_contour_detection(
-            frame_clean,
-            tuple(threshold),
-            **contour_args
-        )
-        target_contours2 = self.color_contour_detection(
-            frame_clean,
-            tuple(threshold2),
-            **contour_args
-        )
-        # The output of color_contour_detection() is sorted highest to lowest
-        biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
-        biggest_contour2, biggest_contour_area2 = target_contours2[0] if target_contours2 else (None, 0)
-        self.detected: bool = biggest_contour_area > 300
-        self.detected2: bool = biggest_contour_area2 > 300  # did we detect something of interest?
+        frn_threshold = (tuple(self.lab_data[self.frn_detect_color][key]) for key in ["min", "max"])
+        foe_threshold = (tuple(self.lab_data[self.foe_detect_color][key]) for key in ["min", "max"])
 
-        self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
-        self.smoothed_detected2 = self.boolean_detection_averager2(self.detected2)
+        # run contour detection
+        frn_contours = self.color_contour_detection(frame_clean, tuple(frn_threshold), **contour_args)
+        foe_contours = self.color_contour_detection(frame_clean, tuple(foe_threshold), **contour_args)
+        # The output of color_contour_detection() is sorted highest to lowest
+        frn_biggest_contour, frn_biggest_contour_area = frn_contours[0] if frn_contours else (None, 0)
+        foe_biggest_contour, foe_biggest_contour_area = foe_contours[0] if foe_contours else (None, 0)
+        self.frn_detected: bool = frn_biggest_contour_area > 300
+        self.foe_detected: bool = foe_biggest_contour_area > 300  # did we detect something of interest?
+
+        self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
+        self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
         # print(bool(smoothed_detected), smoothed_detected)
 
-        self.control(self.cur_mode)  # ################################
-
+        self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
-        if self.detected:
-            self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
-            self.draw_text(annotated_image, range_bgr[self.target_color], self.target_color)
+        if self.foe_detected:
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.frn_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
         else:
-            self.draw_text(annotated_image, range_bgr['black'], 'None')
-        if biggest_contour_area2 > 100:
-            self.draw_fitted_rect(annotated_image, biggest_contour2, range_bgr[self.target_color2])
-        self.draw_fps(annotated_image, range_bgr['black'], avg_fps)
+            self.draw_text(annotated_image, range_bgr["black"], "None")
+        if foe_biggest_contour_area > 100:
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+        self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
-            cv2.imshow('frame', frame_resize)
+            cv2.imshow("frame", frame_resize)
             key = cv2.waitKey(1)
             if key == 27:
                 return
         else:
-            time.sleep(1E-3)
- 
-
+            time.sleep(1e-3)
 
 
 def get_parser(parser, subparsers=None):
-    return camera_binary_program.get_parser(parser, subparsers)
+    parser, subparsers = camera_binary_program.get_parser(parser, subparsers)
+    parser: argparse.ArgumentParser
+    parser.add_argument('--mode', help="mode to start in")
+    return parser, subparsers
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     get_parser(parser)
     args = parser.parse_args()
