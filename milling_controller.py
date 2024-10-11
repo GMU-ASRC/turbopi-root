@@ -162,7 +162,7 @@ class BinaryProgram:
             "circle": [(50, 90, 0.5), (50, 90, 0.5)],
             "spin": [(0, 90, 1.5), (0, 90, 1.5)]
         }
-        self.cur_mode = "pause"
+        self.cur_mode = "mill"
 
         self.show = self.can_show_windows()
         if not self.show:
