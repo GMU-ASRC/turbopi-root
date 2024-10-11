@@ -150,7 +150,7 @@ class BinaryProgram:
         self.red_position = 0
 
         self.tracking_mode = False
-        self.last_direction = None'
+        self.last_direction = None
 
         self.control_modes = {
             "pause": [(0, 0, 0), (0, 0, 0)],
