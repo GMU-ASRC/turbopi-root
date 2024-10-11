@@ -1,0 +1,16 @@
+
+[Unit]
+Description=lobot discovery
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/python3 /home/pi/boot/hw_find.py -t TurboPi
+ExecStop=/bin/systemctl kill hw_find
+
+[Install]
+WantedBy=multi-user.target
+
+
+
