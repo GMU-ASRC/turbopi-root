@@ -83,9 +83,12 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'diffuse': [(50, 270, 0), (0, 270, 2)],
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
-            "spin": [(0, 90, 1.5), (0, 90, 1.5)],
+            'spin': [(0, 90, 1.5), (0, 90, 1.5)],
             'random': [(100, 90, 0), self.random_walk],
+            'track': self.track,
         }
+        self.mode = "idle"
+        self._mode = None
 
         if post_init:
             self.startup_beep()
@@ -138,9 +141,9 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def track(self):
         if self.smoothed_foe_detected:
-            self.chassis.set_velocity(50, 90, self.red_position * 2)  # p controller
+            self.chassis.set_velocity(50, 90, self.foe_position * 2)  # p controller
         else:
-            if self.last_foe_position is None:
+            if self.foe_position is None:
                 self.random_walk()
             elif -0.3 < self.foe_position < 0.3:  # straight
                 self.chassis.set_velocity(50, 90, 0)
