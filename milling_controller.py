@@ -4,6 +4,7 @@
 
 # pyright: reportImplicitOverride=false
 
+import sys
 import time
 import random
 import socket
@@ -11,6 +12,10 @@ import argparse
 
 import cv2
 import numpy as np
+from statemachine import StateMachine, State
+
+sys.path.append('/home/pi/TurboPi/')
+import HiwonderSDK.Sonar as Sonar
 
 import hiwonder_common.program
 import hiwonder_common.statistics_tools as st
@@ -61,6 +66,11 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
+
+        self.sonar = Sonar.Sonar()
+        self.distance = float('nan')
+        self.stuck = False
+        self.t_stuck = 0
 
         self.frn_boolean_detection_averager = st.Average(10)
         self.foe_boolean_detection_averager = st.Average(10)
@@ -140,17 +150,23 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
                 self.turn_orientation = random.randint(-1, 1)
 
     def track(self):
+        self.stuck = self.distance < 700  # NB: comparing int to 'nan' is always false
+
         if self.smoothed_foe_detected:
-            self.chassis.set_velocity(50, 90, self.foe_position * 2)  # p controller
+            self.move(50, 90, self.foe_position * 2)  # p controller
+        elif self.stuck:
+            self.move(0, 90, -0.5)
         else:
             if self.foe_position is None:
                 self.random_walk()
             elif -0.3 < self.foe_position < 0.3:  # straight
-                self.chassis.set_velocity(50, 90, 0)
+                self.move(50, 90, 0)
             elif self.foe_position < -0.3:  # left
-                self.chassis.set_velocity(50, 90, -0.5)
+                self.move(50, 90, -0.5)
             elif self.foe_position > 0.3:  # right
-                self.chassis.set_velocity(50, 90, 0.5)
+                self.move(50, 90, 0.5)
+
+        # reset last foe position if not seen for more than 5 seconds
         if self.t_foe_last_detected is not None and time.time() - self.t_foe_last_detected > 5:
             self.foe_position = None
 
@@ -228,6 +244,13 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
         self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
         # print(bool(smoothed_detected), smoothed_detected)
+
+        distance = self.sonar.getDistance()
+        if round(distance) == 5000:
+            distance = float('inf')
+        elif distance > 5000:
+            distance = float('nan')
+        self.distance = distance
 
         self.control_wrapper()  # ################################
 
