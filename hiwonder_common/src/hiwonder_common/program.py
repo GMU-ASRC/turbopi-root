@@ -102,8 +102,7 @@ class UDP_Listener:
             print("Timed out wating for UDP Listener to die.")
 
 
-
-range_bgr = {
+range_rgb = {
     'red': (255, 0, 0),
     'orange': (255, 50, 0),
     'yellow': (200, 200, 0),
@@ -277,9 +276,9 @@ class Program:
         # Set the RGB light color of the expansion board to match the color you want to track
         # color can be a key in range_bgr OR an RGB tuple
         if isinstance(color, str) or color is None:
-            if color not in range_bgr:
+            if color not in range_rgb:
                 color = "black"
-            b, g, r = range_bgr[color]
+            r, g, b = range_rgb[color]
         else:
             r, g, b = color
         self.board.RGB.setPixelColor(0, self.board.PixelColor(r, g, b))

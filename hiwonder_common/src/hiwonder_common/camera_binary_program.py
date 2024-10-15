@@ -13,7 +13,7 @@ import numpy as np
 import cv2
 
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.program import Program, main, range_bgr
+from hiwonder_common.program import Program, main, range_rgb
 import hiwonder_common.program  # modifies PATH
 
 # import after path modification
@@ -25,6 +25,8 @@ from typing import Any
 # path = '/home/pi/TurboPi/'
 THRESHOLD_CFG_PATH = '/home/pi/TurboPi/lab_config.yaml'
 SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
+
+range_bgr = {k: reversed(v) for k, v in range_rgb.items()}
 
 
 dict_names = Program.dict_names
