@@ -36,6 +36,65 @@ dict_names |= {
 }
 
 
+class TrackingState(StateMachine):
+    search = State(initial=True)
+    stuck = State()
+    chase = State()
+    reacquire = State()
+
+    def __init__(self, robot, stuck_distance=100, unstuck_time=1, foe_lost_time=5,):
+        self.robot: SandmanProgram = robot
+
+        self.stuck_distance = stuck_distance
+        self.unstuck_time = unstuck_time
+        self.t_stuck = 0
+        self.foe_lost_time = foe_lost_time
+        self.t_foe_lost = 0
+
+        super().__init__()
+
+    cycle = (
+        stuck.from_(search, reacquire, cond='is_stuck')
+        | chase.from_(search, stuck, cond='see')
+        | reacquire.to(search, cond='lost')
+        | stuck.to(search, cond='stuck_elapsed')
+        | chase.to(reacquire, unless='see')
+        | chase.to.itself(internal=True)
+        | reacquire.to.itself(internal=True)
+        | stuck.to.itself(internal=True)
+        | search.to.itself(internal=True)
+    )
+
+    def is_stuck(self, distance, see_foe):
+        return distance < self.stuck_distance  # NB: comparing int to 'nan' is always false
+
+    def stuck_elapsed(self, distance, see_foe):
+        return (time.time() - self.t_stuck) > self.unstuck_time
+
+    def see(self, distance, see_foe):
+        return see_foe
+
+    def lost(self, distance, see_foe):
+        return (time.time() - self.t_foe_lost) > self.foe_lost_time
+
+    def on_cycle(self):
+        s = self.current_state
+        if s == self.search:
+            self.robot.search()
+        if s == self.chase:
+            self.robot.chase()
+        if s == self.reacquire:
+            self.robot.move_towards_foe_lastseen()
+        if s == self.stuck:
+            self.robot.turn()
+
+    def on_enter_stuck(self):
+        self.t_stuck = time.time()
+
+    def on_enter_reacquire(self):
+        self.t_foe_lost = time.time()
+
+
 class UDP_Listener(hiwonder_common.program.UDP_Listener):
     def act(self, data, addr):
         split = data.split(b"cmd:\n", 1)
@@ -69,8 +128,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         self.sonar = Sonar.Sonar()
         self.distance = float('nan')
-        self.stuck = False
-        self.t_stuck = 0
+        self.stuck = TrackingState(self)
 
         self.frn_boolean_detection_averager = st.Average(10)
         self.foe_boolean_detection_averager = st.Average(10)
@@ -85,7 +143,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.foe_position = None
         self.t_foe_last_detected = None
 
-        self.control_modes = {
+        self.search_modes = {
             'idle': [(0, 0, 0), (0, 0, 0)],
             'mill': [(100, 90, -0.5), (100, 90, 0.5)],
             'follow_leader': [(75, 90, 0), (75, 90, -0.5)],
@@ -94,11 +152,10 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
             'spin': [(0, 90, 1.5), (0, 90, 1.5)],
-            'random': [(100, 90, 0), self.random_walk],
-            'track': self.track,
+            'random': self.random_walk
         }
-        self.mode = "idle"
         self._mode = None
+        self.mode = args.mode if args.mode in self.search_modes else 'idle'
 
         if post_init:
             self.startup_beep()
@@ -109,7 +166,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     @mode.setter
     def mode(self, mode):
-        if mode not in self.control_modes:
+        if mode not in self.search_modes:
             print(f"invalid mode: {mode}")
         else:
             self._mode = mode
@@ -149,26 +206,41 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             while self.turn_orientation == 0:
                 self.turn_orientation = random.randint(-1, 1)
 
-    def track(self):
-        self.stuck = self.distance < 700  # NB: comparing int to 'nan' is always false
+    def move_towards_foe_lastseen(self):
+        if self.foe_position is None:
+            # self.random_walk()
+            self.move(50, 90, 0)
+        elif -0.3 < self.foe_position < 0.3:  # straight
+            self.move(50, 90, 0)
+        elif self.foe_position < -0.3:  # left
+            self.move(50, 90, -0.5)
+        elif self.foe_position > 0.3:  # right
+            self.move(50, 90, 0.5)
 
-        if self.smoothed_foe_detected:
-            self.move(50, 90, self.foe_position * 2)  # p controller
-        elif self.stuck:
-            self.move(0, 90, -0.5)
-        else:
-            if self.foe_position is None:
-                self.random_walk()
-            elif -0.3 < self.foe_position < 0.3:  # straight
-                self.move(50, 90, 0)
-            elif self.foe_position < -0.3:  # left
-                self.move(50, 90, -0.5)
-            elif self.foe_position > 0.3:  # right
-                self.move(50, 90, 0.5)
+    def chase(self):
+        self.move(50, 90, self.foe_position * 2)  # p controller
 
-        # reset last foe position if not seen for more than 5 seconds
-        if self.t_foe_last_detected is not None and time.time() - self.t_foe_last_detected > 5:
-            self.foe_position = None
+    def turn(self):
+        self.move(0, 90, 0.5)
+
+    def search(self):
+
+        def move_or_call(move_or_function):
+            if callable(move_or_function):
+                move_or_function()
+                return
+            if isinstance(move_or_function, (list, tuple)):
+                self.move(*move_or_function)
+
+        if self.mode not in self.search_modes:
+            return  # ======================================
+        actions = self.search_modes[self.mode]
+        if isinstance(actions, (list, tuple)) and len(actions) == 2:
+            # mode is a simple binary mode
+            index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
+            move_or_call(actions[index])
+        elif callable(actions):
+            actions()  # this handles what to do regardless of if detected or not
 
     def control(self):
         if self.smoothed_foe_detected:
@@ -178,26 +250,9 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         else:
             self.set_rgb("blue")
 
-        def move_or_call(move_or_function):
-            if callable(move_or_function):
-                move_or_function()
-                return
-            if isinstance(move_or_function, (list, tuple)):
-                self.move(*move_or_function)
-
-        if self.mode not in self.control_modes:
-            return  # ======================================
-        actions = self.control_modes[self.mode]
-        if isinstance(actions, (list, tuple)) and len(actions) == 2:
-            # mode is a simple binary mode
-            detected_action, nodetect_action = actions
-            if self.smoothed_foe_detected:  # smoothed_detected is a low-pass filtered detection
-                move_or_call(detected_action)
-            else:
-                move_or_call(nodetect_action)
-        elif callable(actions):
-            actions()  # this handles what to do regardless of if detected or not
-
+        self.stuck.cycle(self.distance, self.smoothed_foe_detected)
+        # print(self.stuck.current_state)
+        # print(f"{'█' if self.stuck. else ' '}  {(self.distance / 1000):5.3f}")
 
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
@@ -239,7 +294,6 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             if M['m00'] != 0:
                 cx = int(M['m10'] / M['m00'])
             self.foe_position = (cx / frame_size) - 0.5
-            self.t_foe_last_detected = time.time()
 
         self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
         self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
@@ -276,7 +330,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 def get_parser(parser, subparsers=None):
     parser, subparsers = camera_binary_program.get_parser(parser, subparsers)
     parser: argparse.ArgumentParser
-    parser.add_argument('--mode', help="mode to start in")
+    parser.add_argument('--mode', help="mode to start in", default='idle')
     return parser, subparsers
 
 
