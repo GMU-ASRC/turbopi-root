@@ -7,6 +7,7 @@ import RPi.GPIO as GPIO
 sys.path.append('/home/pi/TurboPi/')
 sys.path.append('/home/pi/boot/')
 import os
+import bdb
 import time
 import math
 import signal
@@ -112,9 +113,9 @@ range_bgr = {
 
 
 class Program:
-    UDP_LISTENER_CLASS = UDP_Listener
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
+    UDP_LISTENER_CLASS = UDP_Listener
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         self._run = not args.start_paused
@@ -352,6 +353,9 @@ class Program:
                 print('Received KeyboardInterrupt')
                 self.stop(True)
             except SystemExit:
+                # print("Raising final SystemExit")
+                raise
+            except bdb.BdbQuit:
                 # print("Raising final SystemExit")
                 raise
             except Exception as err:

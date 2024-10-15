@@ -334,7 +334,7 @@ def get_parser(parser, subparsers=None):
     return parser, subparsers
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     get_parser(parser)
     args = parser.parse_args()
