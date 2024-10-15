@@ -26,7 +26,7 @@ from typing import Any
 THRESHOLD_CFG_PATH = '/home/pi/TurboPi/lab_config.yaml'
 SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
-range_bgr = {k: reversed(v) for k, v in range_rgb.items()}
+range_bgr = {k: tuple(reversed(v)) for k, v in range_rgb.items()}
 
 
 dict_names = Program.dict_names
