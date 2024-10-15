@@ -7,6 +7,7 @@ import RPi.GPIO as GPIO
 sys.path.append('/home/pi/TurboPi/')
 sys.path.append('/home/pi/boot/')
 import os
+import bdb
 import time
 import math
 import signal
@@ -351,6 +352,9 @@ class Program:
                 print('Received KeyboardInterrupt')
                 self.stop(True)
             except SystemExit:
+                # print("Raising final SystemExit")
+                raise
+            except bdb.BdbQuit:
                 # print("Raising final SystemExit")
                 raise
             except Exception as err:
