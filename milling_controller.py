@@ -244,7 +244,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def control(self):
         if self.smoothed_foe_detected:
-            self.set_rgb("red")
+            self.set_rgb("yellow")
         elif self.smoothed_frn_detected:
             self.set_rgb("green")
         else:
