@@ -42,7 +42,7 @@ class TrackingState(StateMachine):
     chase = State()
     reacquire = State()
 
-    def __init__(self, robot, stuck_distance=100, unstuck_time=1, foe_lost_time=5,):
+    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=5,):
         self.robot: SandmanProgram = robot
 
         self.stuck_distance = stuck_distance
