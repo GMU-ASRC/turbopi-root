@@ -113,7 +113,7 @@ class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
         if not self.dry_run:
-            self.chassis.set_velocity(fspd_power, 90, turn_power)
+            self.move(fspd_power, 90, turn_power)
 
 
 def get_parser(parser: argparse.ArgumentParser, subparsers=None):
