@@ -1,10 +1,15 @@
+import sys
 import argparse
 import pandas as pd
 from matplotlib import pyplot as plt
 import pathlib
 import colorsys
-import itertools
 from ast import literal_eval as eval
+
+try:
+    from itertools import pairwise
+except ImportError:
+    from more_itertools import pairwise
 
 try:
     from hiwonder_common import project
@@ -43,9 +48,8 @@ def graph(data):
     if ts.name.strip().lower() == 'time_ns':
         ts /= 1e9
 
-    # breakpoint()
     moves = data.iloc[:, -1]
-    moves = moves.apply(eval)
+    moves = moves.apply(eval)  # time consuming
     moves = moves.apply(get_last_move)
     moves = moves.apply(pd.Series, index=['v', 'd', 'w'])
 
@@ -65,7 +69,7 @@ def graph(data):
         sense = inputs.iloc[:, -1]
         xsen = [ts[0]] if not sense.empty and sense[0] else []
         xnot = []
-        for (xi, si), (xn, sn) in itertools.pairwise(zip(ts, sense)):
+        for (xi, si), (xn, sn) in pairwise(zip(ts, sense)):
             if sn > si:
                 xsen.append(xn)
             if si > sn:
@@ -92,14 +96,21 @@ def graph(data):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", type=pathlib.Path, help="csv file to be graphed")
+    parser.add_argument("filename", type=pathlib.Path, help="csv file to be graphed", nargs='?')
     args = parser.parse_args()
 
-    if project and not args.filename.is_file():
-        p = project.make_default_project(args.filename, root='logs')
+    if project:
+        if not args.filename:
+            path = pathlib.Path(project.inquire_project())
+            p = project.make_default_project(path)
+        elif not args.filename.is_file():
+            p = project.make_default_project(args.filename, root='logs')
         filename = p.root / 'io.tsv'
     else:
         filename = args.filename
+
+    if project and project.inquire_size(filename):
+        sys.exit(1)
 
     sep = '\t' if filename.suffix == '.tsv' else ','
     data = pd.read_csv(filename, sep=sep, skiprows=[], parse_dates=True)
