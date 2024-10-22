@@ -17,7 +17,8 @@ import casPYan.ende.rate as ende
 # typing
 from typing import Any
 
-DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
+# DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/241022-mill-6n-tenn2-binned.json'
 
 
 def bool_to_one_hot(x: bool):
@@ -101,8 +102,11 @@ class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
         # three bins. One for +v, -v, omega.
         v_mapping = [0.0, 100]
         w_mapping = [0.0, 0.5]
-        v = v_mapping[1]
+        v = v_mapping[data[1]] - v_mapping[data[0]]
         w = w_mapping[data[3]] - w_mapping[data[2]]
+
+        if v == 0:
+            v = self.rng.choice([-1, 1]) * v_mapping[1]
 
         if w == 0:
             w = self.rng.choice([-1, 1]) * w_mapping[1]
