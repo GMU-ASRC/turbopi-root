@@ -7,6 +7,7 @@ import RPi.GPIO as GPIO
 sys.path.append('/home/pi/TurboPi/')
 sys.path.append('/home/pi/boot/')
 import os
+import bdb
 import time
 import math
 import signal
@@ -103,9 +104,15 @@ class UDP_Listener:
 
 
 range_bgr = {
-    'red': (0, 0, 255),
+    'red': (255, 0, 0),
+    'orange': (255, 50, 0),
+    'yellow': (200, 200, 0),
+    'lime': (80, 222, 0),
     'green': (0, 255, 0),
-    'blue': (255, 0, 0),
+    'aqua': (0, 200, 200),
+    'sky': (100, 200, 200),
+    'blue': (0, 0, 255),
+    'purple': (200, 0, 200),
     'black': (0, 0, 0),
     'white': (255, 255, 255),
 }
@@ -114,6 +121,7 @@ range_bgr = {
 class Program:
     name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
+    UDP_LISTENER_CLASS = UDP_Listener
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         self._run = not args.start_paused
@@ -153,7 +161,7 @@ class Program:
 
         GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.udp_listener = UDP_Listener(self)
+        self.udp_listener = self.UDP_LISTENER_CLASS(self)
         self.udp_listener.start()
 
         self.buttonman = buttonman
@@ -351,6 +359,9 @@ class Program:
                 print('Received KeyboardInterrupt')
                 self.stop(True)
             except SystemExit:
+                # print("Raising final SystemExit")
+                raise
+            except bdb.BdbQuit:
                 # print("Raising final SystemExit")
                 raise
             except Exception as err:
