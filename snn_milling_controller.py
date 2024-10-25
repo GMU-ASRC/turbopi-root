@@ -100,8 +100,8 @@ class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
         data = self.decode_output()
         data = [int(round(x)) for x in data]
         # three bins. One for +v, -v, omega.
-        v_mapping = [-100, 100]
-        w_mapping = [-0.5, 0.5]
+        v_mapping = [0.0, 100]
+        w_mapping = [0.0, 0.5]
         v = v_mapping[data[1]] - v_mapping[data[0]]
         w = w_mapping[data[3]] - w_mapping[data[2]]
 
