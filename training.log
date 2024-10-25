@@ -1,0 +1,91 @@
+20241025 12:25:26 >>> initialized experiment_tenn2
+20241025 12:25:26 >>> initialized connorsim_snn_eons-v01 for training.
+20241025 12:25:43 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:25:43 >>> Epoch   1:      0.0966:     0.0966 | Neurons:  16 Synapses:  20 | Time: 15.7118s   1.7ms 15.7137
+20241025 12:26:00 >>> Epoch   2:      0.0966:     0.0966 | Neurons:  15 Synapses:  17 | Time: 17.2168s   1.1ms 17.2180
+20241025 12:26:21 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:26:21 >>> Epoch   3:      0.1277:     0.1277 | Neurons:  16 Synapses:  20 | Time: 20.7159s   1.1ms 20.7172
+20241025 12:26:46 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:26:46 >>> Epoch   4:      0.5454:     0.5454 | Neurons:  16 Synapses:  18 | Time: 25.2661s   1.9ms 25.2681
+20241025 12:27:10 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:27:10 >>> Epoch   5:      0.5489:     0.5489 | Neurons:  16 Synapses:  18 | Time: 23.5670s   1.3ms 23.5685
+20241025 12:27:33 >>> Epoch   6:      0.5489:     0.5489 | Neurons:  13 Synapses:   7 | Time: 23.2642s   1.1ms 23.2656
+20241025 12:27:57 >>> Epoch   7:      0.5489:     0.5489 | Neurons:  13 Synapses:   6 | Time: 24.0509s   0.8ms 24.0519
+20241025 12:28:21 >>> Epoch   8:      0.5489:     0.5489 | Neurons:  13 Synapses:   3 | Time: 23.7907s   1.0ms 23.7918
+20241025 12:28:45 >>> Epoch   9:      0.5489:     0.5489 | Neurons:  11 Synapses:   2 | Time: 23.5159s   1.1ms 23.5172
+20241025 12:29:07 >>> Epoch  10:      0.5489:     0.5489 | Neurons:   9 Synapses:   3 | Time: 22.2966s   0.8ms 22.2975
+20241025 12:29:30 >>> Epoch  11:      0.5489:     0.5489 | Neurons:   8 Synapses:   1 | Time: 22.7810s   0.9ms 22.7821
+20241025 12:29:52 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:29:52 >>> Epoch  12:      0.5531:     0.5531 | Neurons:   9 Synapses:   1 | Time: 22.5910s   0.7ms 22.5918
+20241025 12:30:14 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:30:14 >>> Epoch  13:      0.6810:     0.6810 | Neurons:  10 Synapses:   3 | Time: 22.0037s   1.4ms 22.0053
+20241025 12:30:36 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:30:36 >>> Epoch  14:      0.7131:     0.7131 | Neurons:   9 Synapses:   3 | Time: 22.0409s   1.1ms 22.0422
+20241025 12:30:59 >>> Epoch  15:      0.7131:     0.7131 | Neurons:   9 Synapses:   3 | Time: 22.6360s   0.8ms 22.6369
+20241025 12:31:25 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:31:25 >>> Epoch  16:      0.8474:     0.8474 | Neurons:   9 Synapses:   3 | Time: 25.5478s   0.7ms 25.5486
+20241025 12:31:49 >>> Epoch  17:      0.8474:     0.8474 | Neurons:   9 Synapses:   3 | Time: 24.5224s   1.6ms 24.5242
+20241025 12:32:16 >>> Epoch  18:      0.8474:     0.8474 | Neurons:   9 Synapses:   3 | Time: 26.8442s   0.9ms 26.8453
+20241025 12:32:40 >>> Epoch  19:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 24.3114s   0.6ms 24.3122
+20241025 12:33:03 >>> Epoch  20:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 23.0599s   1.4ms 23.0614
+20241025 12:33:26 >>> Epoch  21:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.0513s   0.9ms 22.0525
+20241025 12:33:48 >>> Epoch  22:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.2029s   0.7ms 22.2038
+20241025 12:34:10 >>> Epoch  23:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 21.7164s   1.6ms 21.7182
+20241025 12:34:32 >>> Epoch  24:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.2297s   0.8ms 22.2307
+20241025 12:34:54 >>> Epoch  25:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.6442s   0.8ms 22.6453
+20241025 12:35:17 >>> Epoch  26:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.4640s   1.6ms 22.4658
+20241025 12:35:39 >>> Epoch  27:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.2615s   1.0ms 22.2627
+20241025 12:36:01 >>> Epoch  28:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 21.7585s   0.8ms 21.7595
+20241025 12:36:23 >>> Epoch  29:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 21.8405s   1.4ms 21.8421
+20241025 12:36:45 >>> Epoch  30:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.1106s   1.0ms 22.1118
+20241025 12:37:07 >>> Epoch  31:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.1486s   0.8ms 22.1496
+20241025 12:37:29 >>> Epoch  32:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 21.9597s   1.3ms 21.9611
+20241025 12:37:51 >>> Epoch  33:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.2339s   0.9ms 22.2349
+20241025 12:38:16 >>> Epoch  34:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 24.9772s   0.8ms 24.9781
+20241025 12:38:39 >>> Epoch  35:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.4961s   1.5ms 22.4977
+20241025 12:39:01 >>> Epoch  36:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.4481s   1.1ms 22.4494
+20241025 12:39:24 >>> Epoch  37:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.5112s   0.6ms 22.5120
+20241025 12:39:47 >>> Epoch  38:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 23.3080s   1.4ms 23.3095
+20241025 12:40:10 >>> Epoch  39:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.7597s   1.0ms 22.7609
+20241025 12:40:33 >>> Epoch  40:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 22.9260s   0.8ms 22.9270
+20241025 12:40:56 >>> Epoch  41:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 23.2164s   1.4ms 23.2179
+20241025 12:41:20 >>> Epoch  42:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 23.3502s   1.0ms 23.3514
+20241025 12:41:43 >>> Epoch  43:      0.8474:     0.8474 | Neurons:   7 Synapses:   3 | Time: 23.2430s   0.8ms 23.2439
+20241025 12:42:06 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:42:06 >>> Epoch  44:      0.8479:     0.8479 | Neurons:   8 Synapses:   5 | Time: 23.3012s   1.5ms 23.3029
+20241025 12:42:30 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:42:30 >>> Epoch  45:      0.8571:     0.8571 | Neurons:   8 Synapses:   5 | Time: 23.8947s   1.3ms 23.8961
+20241025 12:42:54 >>> Epoch  46:      0.8571:     0.8571 | Neurons:   8 Synapses:   5 | Time: 24.1827s   0.9ms 24.1838
+20241025 12:43:18 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:43:18 >>> Epoch  47:      0.8809:     0.8809 | Neurons:   7 Synapses:   5 | Time: 23.9532s   0.7ms 23.9540
+20241025 12:43:43 >>> Epoch  48:      0.8809:     0.8809 | Neurons:   7 Synapses:   5 | Time: 24.1154s   1.7ms 24.1172
+20241025 12:44:07 >>> Epoch  49:      0.8809:     0.8809 | Neurons:   7 Synapses:   5 | Time: 24.2891s   0.9ms 24.2901
+20241025 12:44:31 >>> Epoch  50:      0.8809:     0.8809 | Neurons:   7 Synapses:   5 | Time: 23.8215s   0.6ms 23.8223
+20241025 12:44:54 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:44:54 >>> Epoch  51:      0.8881:     0.8881 | Neurons:   7 Synapses:   5 | Time: 23.5285s   1.7ms 23.5304
+20241025 12:45:19 >>> Epoch  52:      0.8881:     0.8881 | Neurons:   7 Synapses:   5 | Time: 24.2585s   1.0ms 24.2597
+20241025 12:45:43 >>> Epoch  53:      0.8881:     0.8881 | Neurons:   7 Synapses:   5 | Time: 24.5138s   0.7ms 24.5146
+20241025 12:46:09 >>> Epoch  54:      0.8881:     0.8881 | Neurons:   7 Synapses:   5 | Time: 26.1055s   1.9ms 26.1076
+20241025 12:46:34 >>> Epoch  55:      0.8881:     0.8881 | Neurons:   7 Synapses:   5 | Time: 25.1342s   1.0ms 25.1353
+20241025 12:46:58 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:46:58 >>> Epoch  56:      0.8943:     0.8943 | Neurons:   8 Synapses:   6 | Time: 23.3584s   0.8ms 23.3594
+20241025 12:47:25 >>> Epoch  57:      0.8943:     0.8943 | Neurons:   7 Synapses:   6 | Time: 27.3378s   1.5ms 27.3394
+20241025 12:47:49 >>> Epoch  58:      0.8943:     0.8943 | Neurons:   7 Synapses:   6 | Time: 23.8647s   0.8ms 23.8657
+20241025 12:48:13 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:48:13 >>> Epoch  59:      0.9004:     0.9004 | Neurons:   7 Synapses:   7 | Time: 23.8873s   0.7ms 23.8882
+20241025 12:48:37 >>> Epoch  60:      0.9004:     0.9004 | Neurons:   7 Synapses:   7 | Time: 24.4193s   1.5ms 24.4209
+20241025 12:49:02 >>> Epoch  61:      0.9004:     0.9004 | Neurons:   7 Synapses:   7 | Time: 24.1572s   0.8ms 24.1582
+20241025 12:49:25 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:49:25 >>> Epoch  62:      0.9030:     0.9030 | Neurons:   7 Synapses:   7 | Time: 23.5350s   0.8ms 23.5359
+20241025 12:49:49 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:49:49 >>> Epoch  63:      0.9085:     0.9085 | Neurons:   7 Synapses:   7 | Time: 24.1395s   1.7ms 24.1414
+20241025 12:50:14 >>> wrote best network to out/241025-122526-connorsim_snn_eons-v01/best.json.
+20241025 12:50:14 >>> Epoch  64:      0.9095:     0.9095 | Neurons:   9 Synapses:   7 | Time: 24.6689s   0.9ms 24.6700
+20241025 12:50:38 >>> Epoch  65:      0.9095:     0.9095 | Neurons:   9 Synapses:   7 | Time: 23.9759s   1.1ms 23.9772
+20241025 12:51:02 >>> Epoch  66:      0.9095:     0.9095 | Neurons:   9 Synapses:   7 | Time: 24.1525s   0.8ms 24.1534
+20241025 12:51:26 >>> Epoch  67:      0.9095:     0.9095 | Neurons:   9 Synapses:   7 | Time: 23.7581s   0.8ms 23.7593
+20241025 12:51:39 >>> training cancelled.
+20241025 12:51:39 >>> training finished.
+20241025 12:53:09 >>> initialized experiment_tenn2
+20241025 12:53:33 >>> initialized experiment_tenn2
+20241025 12:54:24 >>> initialized experiment_tenn2
