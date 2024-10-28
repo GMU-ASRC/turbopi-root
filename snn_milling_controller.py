@@ -2,10 +2,14 @@
 # coding=utf8
 # from contextlib import ExitStack
 import argparse
-import json
-import milling_controller
-from milling_controller import BinaryProgram, range_bgr
+import math
+import random
+import numpy as np
+
 import hiwonder_common.statistics_tools as st
+from hiwonder_common.camera_binary_program import range_bgr
+import hiwonder_common.camera_binary_program as camera_binary_program
+import hiwonder_common.jsontools as jst
 
 import casPYan
 import casPYan.ende.rate as ende
@@ -13,16 +17,7 @@ import casPYan.ende.rate as ende
 # typing
 from typing import Any
 
-import warnings
-try:
-    import buttonman as buttonman
-    buttonman.TaskManager.register_stoppable()
-except ImportError:
-    buttonman = None
-    warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
-                  ImportWarning, stacklevel=2)
-
-DEFAULT_NETWORK_PATH = '/home/pi/networks/turbopi-milling_n10.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
 
 
 def bool_to_one_hot(x: bool):
@@ -32,38 +27,44 @@ def bool_to_one_hot(x: bool):
 b2oh = bool_to_one_hot
 
 
-class SNNMillingProgram(BinaryProgram):
-    neuro_tpc = 10
-
+class SNNMillingProgram(camera_binary_program.CameraBinaryProgram):
     def __init__(self,
-        dry_run: bool = False,
-        board=None,
-        lab_cfg_path=milling_controller.THRESHOLD_CFG_PATH,
-        servo_cfg_path=milling_controller.SERVO_CFG_PATH,
+        args,
+        post_init=True, board=None, name=None, disable_logging=False,
         network=None,
-        pause=False,
-        startup_beep=True,
-        exit_on_stop=True
     ) -> None:
-        super().__init__(dry_run, board, lab_cfg_path, servo_cfg_path, pause, False, exit_on_stop)
-
-        self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
-        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
+        super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
 
         self.boolean_detection_averager = st.Average(2)
 
         self.network = None
-        if isinstance(network, str):
-            self.set_network(self.read_net_json(network))
+        self.json_net: dict | None = None
+        self.neuro_tpc: int = None  # type: ignore[reportAttributeAccessIssue]
+        self.load_network(args.network)
 
-        if startup_beep:
+        assert self.neuro_tpc is not None
+        self.encoders = [ende.RateEncoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(2)]
+        self.decoders = [ende.RateDecoder(self.neuro_tpc, [0.0, 1.0]) for _ in range(4)]
+
+        if post_init:
             self.startup_beep()
 
+    def load_network(self, path_or_net):
+        self.json_net = self.read_json(path_or_net)
+        try:
+            self.neuro_tpc = self.json_net['Associated_Data']['application']['encoder_ticks']
+        except KeyError:
+            self.neuro_tpc = 10
+            print(f"WARNING: Could not read `encoder_ticks` from network. Using default value of {self.neuro_tpc}")
+        self.set_network(self.convert_json_to_caspyan(self.json_net))
+
     @staticmethod
-    def read_net_json(path: str):
-        with open(path) as f:
-            j = json.loads(f.read())
-        return casPYan.network.network_from_json(j)
+    def read_json(path_or_net) -> dict:
+        return jst.smartload(path_or_net)
+
+    @staticmethod
+    def convert_json_to_caspyan(network: dict):
+        return casPYan.network.network_from_json(network)
 
     def set_network(self, network):
         self.network = network
@@ -93,31 +94,35 @@ class SNNMillingProgram(BinaryProgram):
         self.apply_spikes(spikes_per_node)
         self.run(5)
         self.run(self.neuro_tpc)
-        v0, v1, w0, w1 = self.decode_output()
+        # v0, v1, w0, w1 = self.decode_output()
+        data = self.decode_output()
+        # three bins. One for +v, -v, omega.
+        v = 0.2 * (data[1] - data[0])
+        w = 2.0 * (data[3] - data[2])
 
-        v = 56.65 * (v1 - v0)
-        w = 1.574 * (w1 - w0)
+        # convert w from rad to deg
+        # w_rad = w
+        # w = math.degrees(w_rad)
+        fspd_power = math.copysign(max(0, st.fmap(abs(v), 0.124, 0.276, 35, 100)), v)
+        turn_power = math.copysign(max(0, st.fmap(abs(w), 0.3, 2.6, 0.25, 2)), w)
+        # print(data, v, w, fspd_power, turn_power)
 
         # print(v, w)
         self.set_rgb('green' if bool(self.detected) else 'red')
         if not self.dry_run:
-            self.chassis.set_velocity(v, 50, w)
+            self.move(fspd_power, 90, turn_power)
 
 
 def get_parser(parser: argparse.ArgumentParser, subparsers=None):
-    parser.add_argument('--network', type=str, default=DEFAULT_NETWORK_PATH)
+    parser.add_argument('--network', default=DEFAULT_NETWORK_PATH)
     return parser, subparsers
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser, subparsers = milling_controller.get_parser(parser)
+    parser, subparsers = camera_binary_program.get_parser(parser)
     parser, subparsers = get_parser(parser)
     args = parser.parse_args()
 
-    program = SNNMillingProgram(
-        dry_run=args.dry_run,
-        pause=args.startpaused,
-        network=args.network,
-    )
+    program = SNNMillingProgram(args,)
     program.main()

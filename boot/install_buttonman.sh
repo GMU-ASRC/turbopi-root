@@ -38,6 +38,17 @@ systemctl disable hw_button_scan.service
 systemctl stop hw_button_scan.service
 systemctl enable buttonman.service
 systemctl start buttonman.service
+
+echo
+echo 'Removing old hw_find service'
+systemctl stop hw_find.service
+systemctl disable hw_find.service
+rm /etc/systemd/system/hw_find.service
+echo 'Linking /etc/systemd/system/hw_find.service --> /home/pi/boot/hw_find.service'
+ln -sf /home/pi/boot/hw_find.service /etc/systemd/system/hw_find.service
+echo 'Restarting hw_find discovery service'
+systemctl enable hw_find.service
+systemctl start hw_find.service
 echo
 echo 'Checking if aliases already installed...'
 update_bashrc "alias batt='sudo python3 /home/pi/boot/battchk.py'"
