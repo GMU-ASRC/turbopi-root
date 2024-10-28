@@ -44,6 +44,30 @@ def check_if_writable(path):
         raise PermissionError(msg)
 
 
+def inquire_project(root=None):
+    if root is None:
+        root = DEFAULT_PROJECT_BASEPATH
+    from InquirerPy import inquirer
+    projects = list(root.iterdir())
+    if not list:
+        return None
+    return inquirer.fuzzy(choices=sorted(projects), message="Select a project").execute()
+
+
+def inquire_size(file: pathlib.Path, limit=300e6):  # 300 MB
+    size = file.stat().st_size
+    if size < limit:
+        return
+    mb = round(size / 1e6, 3)
+    message = f"The file {file} is {mb} MB. Do you want to continue?"
+    try:
+        from InquirerPy import inquirer
+        return not inquirer.confirm(message=message, default=True).execute()
+    except ImportError:
+        print(message)
+        input("Press enter to continue, ctrl-c to cancel.")
+
+
 def get_dict(obj):
     if hasattr(obj, "as_dict"):
         return obj.as_dict()
