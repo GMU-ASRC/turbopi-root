@@ -33,6 +33,8 @@ dict_names |= {
     "random_walk_time",
     "random_turn_time",
     "turn_orientation",
+    "turning_rate_val",
+    "spiral_out_time",
 }
 
 
@@ -140,6 +142,9 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.random_turn_time = 0
         self.turn_orientation = random.randint(-1, 1)
 
+        self.turning_rate_val = 2
+        self.spiral_out_time = 200
+
         self.foe_position = None
         self.t_foe_last_detected = None
 
@@ -152,7 +157,8 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
             'spin': [(0, 90, 1.5), (0, 90, 1.5)],
-            'random': self.random_walk
+            'random': self.random_walk,
+            'spiral': self.spiral
         }
         self._mode = None
         self.mode = args.mode if args.mode in self.search_modes else 'idle'
@@ -205,6 +211,17 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.turn_orientation = random.randint(-1, 1)
             while self.turn_orientation == 0:
                 self.turn_orientation = random.randint(-1, 1)
+
+    def spiral(self):
+        if self.spiral_out_time > 0:
+            self.move(100, 90, turning_rate_val)
+            if self.spiral_out_time % 10 == 0:
+                if self.turning_rate_val > 0:
+                    self.turning_rate_val -= 0.1
+                else: 
+                    self.turning_rate_val = 2
+        else:
+            self.spiral_out_time = 200
 
     def move_towards_foe_lastseen(self):
         if self.foe_position is None:
