@@ -15,7 +15,7 @@ from math import pi, isnan
 
 
 def millis():
-    return time.time_ns() * 10E6
+    return time.time_ns() / 1e6
 
 class PID:
     _kp = _ki = _kd = _integrator = _imax = 0
@@ -30,7 +30,7 @@ class PID:
         self._last_derivative = float("nan")
 
     def get_pid(self, error, scaler):
-        tnow = millis
+        tnow = millis()
         dt = tnow - self._last_t
         output = 0
         if self._last_t == 0 or dt > 1000:

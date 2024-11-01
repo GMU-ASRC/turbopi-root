@@ -132,7 +132,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.sonar = Sonar.Sonar()
         self.distance = float('nan')
         self.stuck = TrackingState(self)
-        self.tracking_pid = st.PID(1.0, 0.01, 0.001)
+        self.tracking_pid = st.PID(1.0, 0.01, 0.0)
 
         self.frn_boolean_detection_averager = st.Average(10)
         self.foe_boolean_detection_averager = st.Average(10)
@@ -230,8 +230,10 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.move(50, 90, 0.5)
 
     def chase(self):
-        e = self.tracking_pid(self.foe_position)
-        self.move(50, 90, -e)  # p controller
+        p = self.foe_position
+        e = self.tracking_pid(p)
+        # print(f"pos: {p:8.2}\t error: {e:8.2}")
+        self.move(50, 90, e)  # p controller
 
     def turn(self):
         self.move(0, 90, 0.5)
