@@ -36,6 +36,9 @@ dict_names |= {
 }
 
 
+INITIAL_SPIRAL_TURN_RATE = 1.0
+
+
 class TrackingState(StateMachine):
     search = State(initial=True)
     stuck = State()
@@ -139,6 +142,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.random_walk_time = 0
         self.random_turn_time = 0
         self.turn_orientation = random.randint(-1, 1)
+        self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
         self.foe_position = None
         self.t_foe_last_detected = None
@@ -152,6 +156,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
             'spin': [(0, 90, 1.5), (0, 90, 1.5)],
+            'spiral': self.spiral1,
             'random': self.random_walk
         }
         self._mode = None
@@ -205,6 +210,12 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.turn_orientation = random.randint(-1, 1)
             while self.turn_orientation == 0:
                 self.turn_orientation = random.randint(-1, 1)
+
+    def spiral1(self):
+        self.move(100, 90, self.spiral_turn_rate * self.turn_orientation)
+        self.spiral_turn_rate -= 0.005
+        if self.spiral_turn_rate < 0:
+            self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def move_towards_foe_lastseen(self):
         if self.foe_position is None:
