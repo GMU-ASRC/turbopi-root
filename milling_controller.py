@@ -214,7 +214,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
     def spiral1(self):
         self.move(100, 90, self.spiral_turn_rate * self.turn_orientation)
         self.spiral_turn_rate -= 0.001
-        if self.spiral_turn_rate < 0.15:
+        if self.spiral_turn_rate < 0.35:
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def move_towards_foe_lastseen(self):
