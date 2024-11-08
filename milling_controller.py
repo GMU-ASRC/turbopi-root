@@ -57,7 +57,7 @@ class TrackingState(StateMachine):
         super().__init__()
 
     cycle = (
-        stuck.from_(search, reacquire, cond='is_stuck')
+        stuck.from_(search, cond='is_stuck')
         | chase.from_(search, stuck, cond='see')
         | reacquire.to(search, cond='lost')
         | stuck.to(search, cond='stuck_elapsed')
