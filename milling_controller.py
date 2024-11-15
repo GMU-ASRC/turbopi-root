@@ -253,6 +253,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         if isinstance(actions, (list, tuple)) and len(actions) == 2:
             # mode is a simple binary mode
             #index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
+            index = 0
             move_or_call(actions[index])
         elif callable(actions):
             actions()  # this handles what to do regardless of if detected or not
