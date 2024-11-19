@@ -17,8 +17,7 @@ import casPYan.ende.rate as ende
 # typing
 from typing import Any
 
-# DEFAULT_NETWORK_PATH = '/home/pi/networks/240914-174037-best.json'
-DEFAULT_NETWORK_PATH = '/home/pi/networks/241025-170950-mill-6n-tenn2-binned.json'
+DEFAULT_NETWORK_PATH = '/home/pi/networks/241104-mill-6n-tenn2-2bins.json'
 
 
 def bool_to_one_hot(x: bool):
