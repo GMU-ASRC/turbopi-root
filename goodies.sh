@@ -56,7 +56,8 @@ sudo bash /opt/vim_runtime/install_awesome_parameterized.sh /opt/vim_runtime roo
 if ! command -v zoxide &> /dev/null
 then
 	echo "Installing zoxide"
-	sudo apt install zoxide -y
+	curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
 	echo "updating bashrc with zoxide init"
 	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
 else
@@ -64,11 +65,19 @@ else
 	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
 fi
 
+# if fzf is not installed, install it
+if ! command -v fzf &> /dev/null
+then
+	echo "Installing fzf"
+	git clone --depth 1 https://github.com/junegunn/fzf.git $HOME/.fzf
+	$HOME/.fzf/install --all
+fi
+
 # remove old aliases
 removefrom_bashrc "eval \"\$(zoxide init bash)\""
 removefrom_bashrc "alias cd=z"
 
-sudo apt install ncdu bat aptitude fzf vim -y
+sudo apt install ncdu bat aptitude vim -y
 
 update_bashrc "alias bat='batcat'"
 
