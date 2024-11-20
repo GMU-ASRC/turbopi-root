@@ -57,11 +57,12 @@ if ! command -v zoxide &> /dev/null
 then
 	echo "Installing zoxide"
 	curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
-	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
 	echo "updating bashrc with zoxide init"
+	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
 	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
 else
 	echo "updating bashrc with zoxide init"
+	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
 	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
 fi
 
