@@ -153,7 +153,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'mill': [(100, 90, -0.5), (100, 90, 0.5)],
             'follow_leader': [(75, 90, 0), (75, 90, -0.5)],
             'disperse': [(100, 90, -2), (100, 90, 0)],
-            'diffuse': [(50, 270, 0), (0, 270, 2)],
+            'diffuse': [(0, 270, 2), (50, 270, 0)],
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
             'spin': [(0, 90, 1.5), (0, 90, 1.5)],
@@ -252,8 +252,8 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         actions = self.search_modes[self.mode]
         if isinstance(actions, (list, tuple)) and len(actions) == 2:
             # mode is a simple binary mode
-            #index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
-            index = 0
+            index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
+            # index = 0
             move_or_call(actions[index])
         elif callable(actions):
             actions()  # this handles what to do regardless of if detected or not
