@@ -326,12 +326,16 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         # draw annotations of detected contours
         if self.foe_detected:
-            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.frn_detect_color])
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
+        elif self.frn_detected:
+            self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
             self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
         else:
             self.draw_text(annotated_image, range_bgr["black"], "None")
-        if foe_biggest_contour_area > 100:
-            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+
+        # if foe_biggest_contour_area > 100:
+        #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
         self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
