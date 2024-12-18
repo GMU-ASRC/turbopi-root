@@ -45,7 +45,7 @@ class TrackingState(StateMachine):
     chase = State()
     reacquire = State()
 
-    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=5,):
+    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=2,):
         self.robot: SandmanProgram = robot
 
         self.stuck_distance = stuck_distance
@@ -135,6 +135,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         self.frn_detect_color = "green"
         # self.foe_detect_color = "red"
+        self.current_state_name = "starting"
 
         self.random_walk_time = 0
         self.random_turn_time = 0
@@ -215,6 +216,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def move_towards_foe_lastseen(self):
+        self.current_state_name = "Reacquire"
         if self.foe_position is None:
             # self.random_walk()
             self.move(50, 90, 0)
@@ -226,16 +228,18 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.move(50, 90, 0.5)
 
     def chase(self):
+        self.current_state_name = "Chase"
         p = self.foe_position
         e = self.tracking_pid(p)
         # print(f"pos: {p:8.2}\t error: {e:8.2}")
         self.move(50, 90, e)  # p controller
 
     def turn(self):
+        self.current_state_name = "Stuck"
         self.move(0, 90, 0.5)
 
     def search(self):
-
+        self.current_state_name = "Search"
         def move_or_call(move_or_function):
             if callable(move_or_function):
                 move_or_function()
@@ -321,13 +325,19 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
-        # if self.foe_detected:
-        #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.frn_detect_color])
-        #     self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
-        # else:
-        #     self.draw_text(annotated_image, range_bgr["black"], "None")
+        if self.foe_detected:
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
+        elif self.frn_detected:
+            self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
+        else:
+            self.draw_text(annotated_image, range_bgr["black"], "None")
+
         # if foe_biggest_contour_area > 100:
         #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+        self.draw_text_right(annotated_image, range_bgr["black"], self.current_state_name)
+
         self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
