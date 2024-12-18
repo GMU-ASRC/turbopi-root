@@ -336,6 +336,8 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         # if foe_biggest_contour_area > 100:
         #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+        self.draw_text_right(annotated_image, range_bgr["black"], self.current_state)
+
         self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:

@@ -218,6 +218,12 @@ class CameraBinaryProgram(Program):
             cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
 
     @staticmethod
+    def draw_text_right(img, color, name):
+        # Print the state on the right side of screen
+        cv2.putText(img, f"State: {name}", (20, img.shape[0] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
+
+    @staticmethod
     def draw_fps(img, color, fps):
         # Print the detected color on the screen
         cv2.putText(img, f"fps: {fps:.3}", (10, 20),
