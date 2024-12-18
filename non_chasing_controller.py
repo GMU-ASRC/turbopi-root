@@ -42,8 +42,6 @@ INITIAL_SPIRAL_TURN_RATE = 0.7
 class TrackingState(StateMachine):
     search = State(initial=True)
     stuck = State()
-    chase = State()
-    reacquire = State()
 
     def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=2,):
         self.robot: SandmanProgram = robot
@@ -64,10 +62,10 @@ class TrackingState(StateMachine):
         | search.to.itself(internal=True)
     )
 
-    def is_stuck(self, distance, see_foe):
+    def is_stuck(self, distance,):
         return distance < self.stuck_distance  # NB: comparing int to 'nan' is always false
 
-    def stuck_elapsed(self, distance, see_foe):
+    def stuck_elapsed(self, distance):
         return (time.time() - self.t_stuck) > self.unstuck_time
 
     def see(self, distance, see_foe):
@@ -80,10 +78,6 @@ class TrackingState(StateMachine):
         s = self.current_state
         if s == self.search:
             self.robot.search()
-        if s == self.chase:
-            self.robot.chase()
-        if s == self.reacquire:
-            self.robot.move_towards_foe_lastseen()
         if s == self.stuck:
             self.robot.turn()
 
@@ -176,16 +170,14 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def control_wrapper(self):
         self.control()
-        if self.detection_log:
-            self.history.append([
-                time.time_ns(),
-                self.frn_detected,
-                self.smoothed_frn_detected,
-                self.foe_detected,
-                self.smoothed_foe_detected,
-                self.moves_this_frame,
-            ])
-            self.log_detection()
+        # if self.detection_log:
+        #     self.history.append([
+        #         time.time_ns(),
+        #         self.frn_detected,
+        #         self.smoothed_frn_detected,
+        #         self.moves_this_frame,
+        #     ])
+        #     self.log_detection()
 
     def log_detection(self):
         r = self.history[-1]
@@ -215,25 +207,6 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         if self.spiral_turn_rate < 0.35:
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
-    def move_towards_foe_lastseen(self):
-        self.current_state_name = "Reacquire"
-        if self.foe_position is None:
-            # self.random_walk()
-            self.move(50, 90, 0)
-        elif -0.3 < self.foe_position < 0.3:  # straight
-            self.move(50, 90, 0)
-        elif self.foe_position < -0.3:  # left
-            self.move(50, 90, -0.5)
-        elif self.foe_position > 0.3:  # right
-            self.move(50, 90, 0.5)
-
-    def chase(self):
-        self.current_state_name = "Chase"
-        p = self.foe_position
-        e = self.tracking_pid(p)
-        # print(f"pos: {p:8.2}\t error: {e:8.2}")
-        self.move(50, 90, e)  # p controller
-
     def turn(self):
         self.current_state_name = "Stuck"
         self.move(0, 90, 0.5)
@@ -259,14 +232,12 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             actions()  # this handles what to do regardless of if detected or not
 
     def control(self):
-        if self.smoothed_foe_detected:
-            self.set_rgb("yellow")
-        elif self.smoothed_frn_detected:
+        if self.smoothed_frn_detected:
             self.set_rgb("green")
         else:
             self.set_rgb("blue")
 
-        self.stuck.cycle(self.distance, self.smoothed_foe_detected)
+        self.stuck.cycle(self.distance)
         # print(self.stuck.current_state)
         # print(f"{'█' if self.stuck. else ' '}  {(self.distance / 1000):5.3f}")
 
@@ -325,10 +296,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
-        if self.foe_detected:
-            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
-            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
-        elif self.frn_detected:
+        if self.frn_detected:
             self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
             self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
         else:
