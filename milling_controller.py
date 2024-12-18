@@ -38,7 +38,7 @@ dict_names |= {
 
 INITIAL_SPIRAL_TURN_RATE = 0.7
 
-current_state_name = "starting"
+
 
 
 class TrackingState(StateMachine):
@@ -141,6 +141,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         self.frn_detect_color = "green"
         self.foe_detect_color = "red"
+        self.current_state_name = "starting"
 
         self.random_walk_time = 0
         self.random_turn_time = 0
@@ -221,7 +222,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def move_towards_foe_lastseen(self):
-        current_state_name = "Reacquire"
+        self.current_state_name = "Reacquire"
         if self.foe_position is None:
             # self.random_walk()
             self.move(50, 90, 0)
@@ -233,18 +234,18 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             self.move(50, 90, 0.5)
 
     def chase(self):
-        current_state_name = "Chase"
+        self.current_state_name = "Chase"
         p = self.foe_position
         e = self.tracking_pid(p)
         # print(f"pos: {p:8.2}\t error: {e:8.2}")
         self.move(50, 90, e)  # p controller
 
     def turn(self):
-        current_state_name = "Stuck"
+        self.current_state_name = "Stuck"
         self.move(0, 90, 0.5)
 
     def search(self):
-        current_state_name = "Search"
+        self.current_state_name = "Search"
         def move_or_call(move_or_function):
             if callable(move_or_function):
                 move_or_function()
@@ -341,7 +342,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         # if foe_biggest_contour_area > 100:
         #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
-        self.draw_text_right(annotated_image, range_bgr["black"], current_state_name)
+        self.draw_text_right(annotated_image, range_bgr["black"], self.current_state_name)
 
         self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))

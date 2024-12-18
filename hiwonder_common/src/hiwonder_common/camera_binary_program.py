@@ -220,7 +220,7 @@ class CameraBinaryProgram(Program):
     @staticmethod
     def draw_text_right(img, color, name):
         # Print the state on the right side of screen
-        cv2.putText(img, f"State: {name}", (20, img.shape[0] - 10),
+        cv2.putText(img, f"State: {name}", (300, img.shape[0] - 10),
             cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
 
     @staticmethod
