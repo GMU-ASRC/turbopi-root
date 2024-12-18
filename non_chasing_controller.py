@@ -128,7 +128,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.foe_boolean_detection_averager = st.Average(10)
 
         self.frn_detect_color = "green"
-        # self.foe_detect_color = "red"
+        self.foe_detect_color = "red"
         self.current_state_name = "starting"
 
         self.random_walk_time = 0
