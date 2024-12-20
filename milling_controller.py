@@ -114,6 +114,7 @@ class TrackingState(StateMachine):
         self.t_search = time.time()
 
     def on_enter_chill(self):
+        print("Chill")
         self.t_chill = time.time()
 
     def on_enter_stuck(self):
