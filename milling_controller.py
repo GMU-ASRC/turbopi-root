@@ -56,11 +56,16 @@ class TrackingState(StateMachine):
         self.foe_lost_time = foe_lost_time
         self.t_foe_lost = 0
 
+        
+        
+        self.t_wait = 0 # Randomize the ability to chase via wait time 
+        self.wait_time = random.randint(5, 30) # 5 - 30 second wait time before being able to chase
+
         super().__init__()
 
     cycle = (
         stuck.from_(search, cond='is_stuck')
-        | chase.from_(search, stuck, cond='see')
+        | chase.from_(search, stuck, cond=['see', 'wait_elapsed'])
         | reacquire.to(search, cond='lost')
         | stuck.to(search, cond='stuck_elapsed')
         | chase.to(reacquire, unless='see')
@@ -70,6 +75,9 @@ class TrackingState(StateMachine):
         | search.to.itself(internal=True)
     )
 
+    def wait_elapsed(self, distance, see_foe):
+        return (time.time() - self.t_wait) > self.wait_time
+        
     def is_stuck(self, distance, see_foe):
         return distance < self.stuck_distance  # NB: comparing int to 'nan' is always false
 
@@ -92,6 +100,9 @@ class TrackingState(StateMachine):
             self.robot.move_towards_foe_lastseen()
         if s == self.stuck:
             self.robot.turn()
+    
+    def on_enter_search(self):
+        self.t_wait = time.time()
 
     def on_enter_stuck(self):
         self.t_stuck = time.time()
