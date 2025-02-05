@@ -1,0 +1,12 @@
+[Unit]
+Description=start rgbd.py
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/python3 /home/pi/boot/rgbd.py
+ExecStop=/bin/systemctl kill rgbd
+
+[Install]
+WantedBy=multi-user.target

@@ -58,4 +58,11 @@ else
     echo 'Alias already exists for battery check: batt'
 fi
 echo
+
+ln -sf /home/pi/boot/rgbd.service /etc/systemd/system/rgbd.service
+echo
+echo 'rgbd service was linked to /etc/systemd/system/rgbd.service'
+echo
+systemctl enable rgbd.service
+systemctl start rgbd.service
 echo Done!
