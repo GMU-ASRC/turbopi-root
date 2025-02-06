@@ -1,7 +1,7 @@
-import os
+import sys
 import struct
-from tempfile import gettempdir
 
+sys.path.append('/home/pi/boot/')  # gross path hacking
 import rgbd
 from rgbd import path, BYTEORDER, BOC, HEADER_FORMAT, DATA_FORMATS, AWRGB_FORMAT, WRGB_FORMAT
 
