@@ -7,6 +7,7 @@ from ast import literal_eval as eval
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 
 try:
     from itertools import pairwise
@@ -25,6 +26,11 @@ except ImportError:
 
 def hr(h, s, l):  # noqa: E741
     return colorsys.hls_to_rgb(h, l, s)
+
+
+cr = hr(0.0, 0.9, 0.4)
+cb = hr(0.6, 0.9, 0.4)
+cg = hr(0.3, 0.9, 0.4)
 
 
 def get_last_move(moves):
@@ -93,16 +99,7 @@ def get_moves(data):
     return ts, v, w, sense, xsen, xnot
 
 
-def graph(data):
-    plt.rcParams["figure.figsize"] = [7.00, 5.00]
-    # plt.rcParams["figure.autolayout"] = True
-    # read the csv files using pandas excluding the timedate column
-    # df = df.drop(columns=['time'], axis=1)
-    cr = hr(0.0, 0.9, 0.4)
-    cb = hr(0.6, 0.9, 0.4)
-    cg = hr(0.3, 0.9, 0.4)
-
-    fig, ax = plt.subplots()
+def plot_single(fig, ax, data):
     ax.cla()
     axw = ax.twinx()
 
@@ -126,6 +123,18 @@ def graph(data):
         #     ax.subplot(111, aspect='equal')
         for xa, xb in zip(xsen, xnot):
             ax.axvspan(xa, xb, ymin=0.0, ymax=1.0, alpha=0.2, color='green')
+
+    return fig, ax, axw
+
+
+def graph(data):
+    # plt.rcParams["figure.autolayout"] = True
+    # read the csv files using pandas excluding the timedate column
+    # df = df.drop(columns=['time'], axis=1)
+
+    fig, ax = plt.subplots()
+
+    fig, ax, axw = plot_single(fig, ax, data)
 
     # Labels and Title
 
@@ -154,17 +163,28 @@ def graph(data):
     return plt
 
 
-def make_project(filename=None):
+def make_project(filename=None, root=None):
     if not filename:
         path = pathlib.Path(project.inquire_project())
-        return project.make_default_project(path)
+        return project.make_default_project(path, root=root)
     elif not filename.is_file():
-        return project.make_default_project(filename, root='logs')
+        return project.make_default_project(filename, root=root)
 
 
 def read_file(filename):
     sep = '\t' if filename.suffix == '.tsv' else ','
     return pd.read_csv(filename, sep=sep, skiprows=[], parse_dates=True)
+
+
+def data_from_file(filename, offset, offset_end, length):
+    data = read_file(filename)
+    data = convert_time_from_start(data)
+    end = data.iloc[-1, 0] - offset_end if offset_end is not None else None
+    try:
+        return slice_by_time(data, start=offset, end=end, max_length=length)
+    except ValueError as err:
+        msg = f"No data was found in the specified range.\nFile length: {data.iloc[-1, 0]} seconds"
+        raise ValueError(msg) from err
 
 
 if __name__ == "__main__":
@@ -176,21 +196,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if project:
-        filename = make_project(args.filename).root / 'io.tsv'
+        filename = make_project(args.filename, root='logs').root / 'io.tsv'
     else:
         filename = args.filename
 
     if project and project.inquire_size(filename):
         sys.exit(1)
 
-    data = read_file(filename)
-    data = convert_time_from_start(data)
-    end = data.iloc[-1, 0] - args.offset_end if args.offset_end is not None else None
+    plt.rcParams["figure.figsize"] = [7.00, 5.00]
     try:
-        data = slice_by_time(data, start=args.offset, end=end, max_length=args.length)
-    except ValueError:
-        print("No data was found in the specified range.")
-        print(f"File length: {data.iloc[-1, 0]} seconds")
+        data = data_from_file(filename, args.offset, args.offset_end, args.length)
+    except ValueError as err:
+        print(err)
         sys.exit(1)
     plt = graph(data)
     plt.show()
