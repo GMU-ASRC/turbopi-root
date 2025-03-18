@@ -48,10 +48,15 @@ def inquire_project(root=None):
     if root is None:
         root = DEFAULT_PROJECT_BASEPATH
     from InquirerPy import inquirer
+    from InquirerPy.base import Choice
+    from InquirerPy.separator import Separator
     projects = list(root.iterdir())
     if not list:
         return None
-    return inquirer.fuzzy(choices=sorted(projects), message="Select a project").execute()
+    projects = sorted(projects)
+    newest = max(projects, key=lambda f: f.stat().st_mtime)
+    projects.insert(0, Choice(newest, name=f"Suggested (newest): {newest.name}"))
+    return inquirer.fuzzy(choices=projects, message="Select a project").execute()
 
 
 def inquire_size(file: pathlib.Path, limit=300e6):  # 300 MB
