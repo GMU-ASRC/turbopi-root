@@ -331,7 +331,8 @@ args = parser.parse_args([])
 args.nolog = True 
 args.start_paused = False  
 args.project = "rotate"    
-args.root = "/home/pi" 
+args.root = "/home/pi"     
+args.dry_run = False       
 program = RotateProgram(args)
 
 for _ in range(5): 
