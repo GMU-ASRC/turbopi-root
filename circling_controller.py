@@ -106,6 +106,9 @@ class UDP_Listener:
         self.app = app
         self._run = True
 
+    def start(self):
+        pass
+
     def act(self, data, addr):
         split = data.split(b"cmd:\n", 1)
         try:
