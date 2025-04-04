@@ -329,8 +329,8 @@ parser = argparse.ArgumentParser()
 parser, _ = get_parser(parser) 
 args = parser.parse_args([]) 
 args.nolog = True 
-
-program = RotateProgram(args) 
+args.start_paused = False 
+program = RotateProgram(args)
 
 for _ in range(5): 
     program.main_loop() 
