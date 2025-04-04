@@ -310,8 +310,10 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
         self.foe_detected = True 
         self.foe_position = 0.1
         self.foe_area = 250 
+        self.frn_detected = False
         
         self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected) 
+        self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)
         
         distance = self.sonar.getDistance()
         if round(distance) == 5000:
