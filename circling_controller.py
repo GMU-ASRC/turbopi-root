@@ -1,26 +1,23 @@
 #!/usr/bin/python3
 # coding=utf8
+# from contextlib import ExitStack
+
+# pyright: reportImplicitOverride=false
 
 import sys
 import time
 import random
 import socket
 import argparse
-import math #here
 
 import cv2
 import numpy as np
 from statemachine import StateMachine, State
 
-# This would be imported in the actual robot
-# sys.path.append('/home/pi/TurboPi/')
-# import HiwonderSDK.Sonar as Sonar
+sys.path.append('/home/pi/TurboPi/')
+import HiwonderSDK.Sonar as Sonar
 
-# Simulating imports for demonstration
-class Sonar:
-    def getDistance(self):
-        return 500
-
+import hiwonder_common.program
 import hiwonder_common.statistics_tools as st
 from hiwonder_common.camera_binary_program import range_bgr
 import hiwonder_common.camera_binary_program as camera_binary_program
@@ -36,43 +33,47 @@ dict_names |= {
     "random_walk_time",
     "random_turn_time",
     "turn_orientation",
-    "rotate_distance",  
-    "rotate_speed",     
+    "circle_direction",  # Added for circling behavior
+    "circle_offset",     # Added for circling behavior
 }
 
+
 INITIAL_SPIRAL_TURN_RATE = 0.7
-DEFAULT_ROTATE_DISTANCE = 300  
-DEFAULT_ROTATE_SPEED = 50      #for circling
+
+
+
 
 class TrackingState(StateMachine):
     search = State(initial=True)
     stuck = State()
-    rotate = State()  
+    chase = State()
     reacquire = State()
 
-    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=2):
-        self.robot = robot
+    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=2,):
+        self.robot: SandmanProgram = robot
+
         self.stuck_distance = stuck_distance
         self.unstuck_time = unstuck_time
         self.t_stuck = 0
         self.foe_lost_time = foe_lost_time
         self.t_foe_lost = 0
+
         super().__init__()
 
     cycle = (
         stuck.from_(search, cond='is_stuck')
-        | rotate.from_(search, stuck, cond='see')  
+        | chase.from_(search, stuck, cond='see')
         | reacquire.to(search, cond='lost')
         | stuck.to(search, cond='stuck_elapsed')
-        | rotate.to(reacquire, unless='see')  
-        | rotate.to.itself(internal=True)    
+        | chase.to(reacquire, unless='see')
+        | chase.to.itself(internal=True)
         | reacquire.to.itself(internal=True)
         | stuck.to.itself(internal=True)
         | search.to.itself(internal=True)
     )
 
     def is_stuck(self, distance, see_foe):
-        return distance < self.stuck_distance
+        return distance < self.stuck_distance  # NB: comparing int to 'nan' is always false
 
     def stuck_elapsed(self, distance, see_foe):
         return (time.time() - self.t_stuck) > self.unstuck_time
@@ -87,8 +88,8 @@ class TrackingState(StateMachine):
         s = self.current_state
         if s == self.search:
             self.robot.search()
-        if s == self.rotate:  
-            self.robot.rotate()  
+        if s == self.chase:
+            self.robot.chase()  # This will now use our circling behavior
         if s == self.reacquire:
             self.robot.move_towards_foe_lastseen()
         if s == self.stuck:
@@ -101,14 +102,7 @@ class TrackingState(StateMachine):
         self.t_foe_lost = time.time()
 
 
-class UDP_Listener:
-    def __init__(self, app):
-        self.app = app
-        self._run = True
-
-    def start(self):
-        pass
-
+class UDP_Listener(hiwonder_common.program.UDP_Listener):
     def act(self, data, addr):
         split = data.split(b"cmd:\n", 1)
         try:
@@ -126,18 +120,23 @@ class UDP_Listener:
         elif b"pause" in cmd:
             self.app.pause()
         elif b"switch" in cmd:
-            self.app.mode = cmd.strip().removeprefix(b"switch ").decode().strip()
+            program.mode = cmd.strip().removeprefix(b"switch ").decode().strip()
+        elif b"random" in cmd:
+            program.random_walk = not program.random_walk
+        elif b"circle" in cmd:
+            # Toggle circle direction (still available as a command)
+            program.circle_direction *= -1
 
 
-class RotateProgram(camera_binary_program.CameraBinaryProgram):
+class SandmanProgram(camera_binary_program.CameraBinaryProgram):
     UDP_LISTENER_CLASS = UDP_Listener
-    name = "RotateProgram"
+    name = "SandmanProgram"
     dict_names = dict_names
 
-    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False):
+    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
 
-        self.sonar = Sonar()
+        self.sonar = Sonar.Sonar()
         self.distance = float('nan')
         self.stuck = TrackingState(self)
         self.tracking_pid = st.PID(1.0, 0.01, 0.0)
@@ -153,15 +152,14 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
         self.random_turn_time = 0
         self.turn_orientation = random.randint(-1, 1)
         self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
+        
+        # Parameters for circling behavior - active by default
+        self.circle_direction = 1  # 1 for clockwise, -1 for counter-clockwise
+        self.circle_offset = 0.3   # Target position offset from center for circling
+        self.circle_speed = 50     # Forward speed while circling
 
         self.foe_position = None
-        self.foe_area = 0 
         self.t_foe_last_detected = None
-        
-        self.rotate_distance = DEFAULT_ROTATE_DISTANCE 
-        self.rotate_speed = DEFAULT_ROTATE_SPEED 
-        self.rotate_direction = 1  
-        self.rotate_angle = 0 
 
         self.search_modes = {
             'idle': [(0, 0, 0), (0, 0, 0)],
@@ -194,7 +192,7 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
 
     def control_wrapper(self):
         self.control()
-        if hasattr(self, 'detection_log') and self.detection_log:
+        if self.detection_log:
             self.history.append([
                 time.time_ns(),
                 self.frn_detected,
@@ -234,46 +232,68 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def move_towards_foe_lastseen(self):
+        """
+        Modified to maintain circling behavior even when reacquiring target
+        """
         self.current_state_name = "Reacquire"
         if self.foe_position is None:
-            self.move(50, 90, 0)
-        elif -0.3 < self.foe_position < 0.3:
-            self.move(50, 90, 0)
-        elif self.foe_position < -0.3:
-            self.move(50, 90, -0.5)
-        elif self.foe_position > 0.3:
-            self.move(50, 90, 0.5)
-
-    def rotate(self):
-        self.current_state_name = "Rotate" 
-        
-        if self.foe_position is None: 
-            self.move(0, 90, 0.5) 
-            return 
-    
-        distance_factor = 0 
-        if self.foe_area > 0:
-            if self.foe_area > self.rotate_distance: 
-                distance_factor = -0.5 
-            elif self.foe_area < self.rotate_distance * 0.7:
-                distance_factor = 0.5 
-    
-        turn_rate = 0 
-        
-        if -0.2 < self.foe_position < 0.2: 
-            turn_rate = 0.8 * self.rotate_direction 
-        elif self.foe_position < -0.2: 
-            turn_rate = -0.5 + (self.foe_position * 2) 
-        elif self.foe_position > 0.2:
-            turn_rate = 0.5 + (self.foe_position * 2) 
+            # If we have no idea where the target is, just spin in place
+            self.move(0, 90, self.circle_direction * 0.8)
+        else:
+            # Try to get back to the circling position
+            desired_position = self.circle_offset * self.circle_direction
+            position_error = self.foe_position - desired_position
             
-        forward_speed = self.rotate_speed + (distance_factor * 20) 
-        self.move(forward_speed, 90, turn_rate) 
+            # If we're far from the desired position, move to get back there
+            if abs(position_error) > 0.2:
+                if position_error < 0:  # Need to move left
+                    self.move(30, 90, -0.8)
+                else:  # Need to move right
+                    self.move(30, 90, 0.8)
+            else:
+                # We're close to the right position, move forward to continue circling
+                self.move(40, 90, self.circle_direction * 0.5)
+
+    def chase(self):
+        """
+        Implements circling behavior instead of direct chase.
+        The robot will try to keep the target at a specific offset from center,
+        which will cause it to circle around the target.
+        """
+        self.current_state_name = "Circle"
         
+        if self.foe_position is None:
+            # If no position data, just turn in place
+            self.move(0, 90, self.circle_direction * 0.5)
+            return
+            
+        # Calculate the desired position offset based on circle direction
+        # For clockwise circling, we want to keep the target on the right side
+        # For counter-clockwise, we want to keep it on the left side
+        desired_position = self.circle_offset * self.circle_direction
+        
+        # Calculate error: how far the actual position is from our desired position
+        position_error = self.foe_position - desired_position
+        
+        # Use PID controller to calculate turning rate
+        turn_rate = self.tracking_pid(position_error)
+        
+        # Adjust turn rate based on how far off we are
+        # If the target is close to our desired position, we want to move more forward
+        # If it's far, we want to turn more to get back to the right position
+        forward_speed = self.circle_speed
+        
+        # If the target is very far from desired position, reduce forward speed to turn more sharply
+        if abs(position_error) > 0.3:
+            forward_speed = self.circle_speed * 0.7
+            
+        # Move with the calculated parameters
+        self.move(forward_speed, 90, turn_rate)
 
     def turn(self):
         self.current_state_name = "Stuck"
-        self.move(0, 90, 0.5)
+        # When stuck, back up and turn in the circle direction
+        self.move(-30, 90, self.circle_direction * 0.8)
 
     def search(self):
         self.current_state_name = "Search"
@@ -285,13 +305,15 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
                 self.move(*move_or_function)
 
         if self.mode not in self.search_modes:
-            return
+            return  # ======================================
         actions = self.search_modes[self.mode]
         if isinstance(actions, (list, tuple)) and len(actions) == 2:
-            index = int(self.smoothed_frn_detected)
+            # mode is a simple binary mode
+            index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
+            # index = 0
             move_or_call(actions[index])
         elif callable(actions):
-            actions()
+            actions()  # this handles what to do regardless of if detected or not
 
     def control(self):
         if self.smoothed_foe_detected:
@@ -304,42 +326,101 @@ class RotateProgram(camera_binary_program.CameraBinaryProgram):
         self.stuck.cycle(self.distance, self.smoothed_foe_detected)
 
     def main_loop(self):
-        raw_img = np.zeros((480, 640, 3), dtype=np.uint8)
-        frame_clean = raw_img.copy() 
-        
-        self.foe_detected = True 
-        self.foe_position = 0.1
-        self.foe_area = 250 
-        self.frn_detected = False
-        
-        self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected) 
-        self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)
-        
+        avg_fps = self.fps_averager(self.fps)  # feed the averager
+        raw_img = self.camera.frame
+        if raw_img is None:
+            time.sleep(0.01)
+            return
+
+        # prep a resized, blurred version of the frame for contour detection
+        frame = raw_img.copy()
+        frame_clean = cv2.resize(frame, self.preview_size, interpolation=cv2.INTER_NEAREST)
+        frame_clean = cv2.GaussianBlur(frame_clean, (3, 3), 3)
+        frame_clean = cv2.cvtColor(frame_clean, cv2.COLOR_BGR2LAB)  # convert to LAB space
+
+        # prep a copy to be annotated
+        annotated_image = raw_img.copy()
+
+        # If we're calling target_contours() multiple times, some args will
+        # be the same. Let's put them here to re-use them.
+        contour_args = {
+            "open_kernel": np.ones((3, 3), np.uint8),
+            "close_kernel": np.ones((3, 3), np.uint8),
+        }
+        # extract the LAB threshold
+        frn_threshold = (tuple(self.lab_data[self.frn_detect_color][key]) for key in ["min", "max"])
+        foe_threshold = (tuple(self.lab_data[self.foe_detect_color][key]) for key in ["min", "max"])
+
+        # run contour detection
+        frn_contours = self.color_contour_detection(frame_clean, tuple(frn_threshold), **contour_args)
+        foe_contours = self.color_contour_detection(frame_clean, tuple(foe_threshold), **contour_args)
+        # The output of color_contour_detection() is sorted highest to lowest
+        frn_biggest_contour, frn_biggest_contour_area = frn_contours[0] if frn_contours else (None, 0)
+        foe_biggest_contour, foe_biggest_contour_area = foe_contours[0] if foe_contours else (None, 0)
+        self.frn_detected: bool = frn_biggest_contour_area > 300
+        self.foe_detected: bool = foe_biggest_contour_area > 300  # did we detect something of interest?
+        frame_size = frame_clean.shape[1]
+        if self.foe_detected:
+            M = cv2.moments(foe_biggest_contour)
+            if M['m00'] != 0:
+                cx = int(M['m10'] / M['m00'])
+                self.foe_position = (cx / frame_size) - 0.5
+                # Also store the last time we detected the target
+                self.t_foe_last_detected = time.time()
+        else:
+            # Gradually fade the position if not detected
+            if self.foe_position is not None:
+                self.foe_position *= 0.95  # Gradually reduce the value to zero
+
+        self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
+        self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
+        # print(bool(smoothed_detected), smoothed_detected)
+
         distance = self.sonar.getDistance()
         if round(distance) == 5000:
             distance = float('inf')
         elif distance > 5000:
             distance = float('nan')
         self.distance = distance
-        
-        self.control_wrapper()
+
+        self.control_wrapper()  # ################################
+
+        # draw annotations of detected contours
+        if self.foe_detected:
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
+        elif self.frn_detected:
+            self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
+        else:
+            self.draw_text(annotated_image, range_bgr["black"], "None")
+
+        # Add circle direction to display
+        circle_dir_text = "CW" if self.circle_direction > 0 else "CCW"
+        self.draw_text_right(annotated_image, range_bgr["black"], f"{self.current_state_name} {circle_dir_text}")
+
+        self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
+        frame_resize = cv2.resize(annotated_image, (320, 240))
+        if self.show:
+            cv2.imshow("frame", frame_resize)
+            key = cv2.waitKey(1)
+            if key == 27:
+                return
+        else:
+            time.sleep(1e-3)
+
 
 def get_parser(parser, subparsers=None):
-    parser = argparse.ArgumentParser() if parser is None else parser
+    parser, subparsers = camera_binary_program.get_parser(parser, subparsers)
+    parser: argparse.ArgumentParser
     parser.add_argument('--mode', help="mode to start in", default='idle')
-    parser.add_argument('--nolog', action="store_true", help="disable logging") 
     return parser, subparsers
 
-parser = argparse.ArgumentParser() 
-parser, _ = get_parser(parser) 
-args = parser.parse_args([]) 
-args.nolog = True 
-args.start_paused = False  
-args.project = "rotate"    
-args.root = "/home/pi"     
-args.dry_run = False       
-program = RotateProgram(args)
 
-for _ in range(5): 
-    program.main_loop() 
-    time.sleep(0.1) 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    get_parser(parser)
+    args = parser.parse_args()
+
+    program = SandmanProgram(args)
+    camera_binary_program.main(args, program)
