@@ -33,8 +33,8 @@ dict_names |= {
     "random_walk_time",
     "random_turn_time",
     "turn_orientation",
-    "circle_direction",  # Added for circling behavior
-    "circle_offset",     # Added for circling behavior
+    "circle_direction",
+    "circle_offset",
 }
 
 
@@ -49,14 +49,14 @@ class TrackingState(StateMachine):
     chase = State()
     reacquire = State()
 
-    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, foe_lost_time=2,):
+    def __init__(self, robot, stuck_distance=100, unstuck_time=1.5, frn_lost_time=2,):
         self.robot: SandmanProgram = robot
 
         self.stuck_distance = stuck_distance
         self.unstuck_time = unstuck_time
         self.t_stuck = 0
-        self.foe_lost_time = foe_lost_time
-        self.t_foe_lost = 0
+        self.frn_lost_time = frn_lost_time
+        self.t_frn_lost = 0
 
         super().__init__()
 
@@ -72,26 +72,26 @@ class TrackingState(StateMachine):
         | search.to.itself(internal=True)
     )
 
-    def is_stuck(self, distance, see_foe):
+    def is_stuck(self, distance, see_frn):
         return distance < self.stuck_distance  # NB: comparing int to 'nan' is always false
 
-    def stuck_elapsed(self, distance, see_foe):
+    def stuck_elapsed(self, distance, see_frn):
         return (time.time() - self.t_stuck) > self.unstuck_time
 
-    def see(self, distance, see_foe):
-        return see_foe
+    def see(self, distance, see_frn):
+        return see_frn
 
-    def lost(self, distance, see_foe):
-        return (time.time() - self.t_foe_lost) > self.foe_lost_time
+    def lost(self, distance, see_frn):
+        return (time.time() - self.t_frn_lost) > self.frn_lost_time
 
     def on_cycle(self):
         s = self.current_state
         if s == self.search:
             self.robot.search()
         if s == self.chase:
-            self.robot.chase()  # This will now use our circling behavior
+            self.robot.chase()
         if s == self.reacquire:
-            self.robot.move_towards_foe_lastseen()
+            self.robot.move_towards_frn_lastseen()
         if s == self.stuck:
             self.robot.turn()
 
@@ -99,7 +99,7 @@ class TrackingState(StateMachine):
         self.t_stuck = time.time()
 
     def on_enter_reacquire(self):
-        self.t_foe_lost = time.time()
+        self.t_frn_lost = time.time()
 
 
 class UDP_Listener(hiwonder_common.program.UDP_Listener):
@@ -124,7 +124,6 @@ class UDP_Listener(hiwonder_common.program.UDP_Listener):
         elif b"random" in cmd:
             program.random_walk = not program.random_walk
         elif b"circle" in cmd:
-            # Toggle circle direction (still available as a command)
             program.circle_direction *= -1
 
 
@@ -153,13 +152,13 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.turn_orientation = random.randint(-1, 1)
         self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
         
-        # Parameters for circling behavior - active by default
+        # Parameters for circling behavior
         self.circle_direction = 1  # 1 for clockwise, -1 for counter-clockwise
         self.circle_offset = 0.3   # Target position offset from center for circling
         self.circle_speed = 50     # Forward speed while circling
 
-        self.foe_position = None
-        self.t_foe_last_detected = None
+        self.frn_position = None
+        self.t_frn_last_detected = None
 
         self.search_modes = {
             'idle': [(0, 0, 0), (0, 0, 0)],
@@ -231,18 +230,18 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         if self.spiral_turn_rate < 0.35:
             self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
-    def move_towards_foe_lastseen(self):
+    def move_towards_frn_lastseen(self):
         """
-        Modified to maintain circling behavior even when reacquiring target
+        Try to reacquire the green ball by moving towards its last known position
         """
         self.current_state_name = "Reacquire"
-        if self.foe_position is None:
+        if self.frn_position is None:
             # If we have no idea where the target is, just spin in place
-            self.move(0, 90, self.circle_direction * 0.8)
+            self.move(0, 90, self.circle_direction * 1.0)
         else:
             # Try to get back to the circling position
             desired_position = self.circle_offset * self.circle_direction
-            position_error = self.foe_position - desired_position
+            position_error = self.frn_position - desired_position
             
             # If we're far from the desired position, move to get back there
             if abs(position_error) > 0.2:
@@ -256,15 +255,13 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def chase(self):
         """
-        Implements circling behavior instead of direct chase.
-        The robot will try to keep the target at a specific offset from center,
-        which will cause it to circle around the target.
+        Circle around the green ball by keeping it at an offset from the center
         """
         self.current_state_name = "Circle"
         
-        if self.foe_position is None:
-            # If no position data, just turn in place
-            self.move(0, 90, self.circle_direction * 0.5)
+        if self.frn_position is None:
+            # If no position data, just spin in place
+            self.move(0, 90, self.circle_direction * 1.0)
             return
             
         # Calculate the desired position offset based on circle direction
@@ -273,14 +270,12 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         desired_position = self.circle_offset * self.circle_direction
         
         # Calculate error: how far the actual position is from our desired position
-        position_error = self.foe_position - desired_position
+        position_error = self.frn_position - desired_position
         
         # Use PID controller to calculate turning rate
         turn_rate = self.tracking_pid(position_error)
         
-        # Adjust turn rate based on how far off we are
-        # If the target is close to our desired position, we want to move more forward
-        # If it's far, we want to turn more to get back to the right position
+        # Adjust forward speed based on how far off we are
         forward_speed = self.circle_speed
         
         # If the target is very far from desired position, reduce forward speed to turn more sharply
@@ -296,34 +291,23 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.move(-30, 90, self.circle_direction * 0.8)
 
     def search(self):
+        """
+        Spin in place when searching for the green ball
+        """
         self.current_state_name = "Search"
-        def move_or_call(move_or_function):
-            if callable(move_or_function):
-                move_or_function()
-                return
-            if isinstance(move_or_function, (list, tuple)):
-                self.move(*move_or_function)
-
-        if self.mode not in self.search_modes:
-            return  # ======================================
-        actions = self.search_modes[self.mode]
-        if isinstance(actions, (list, tuple)) and len(actions) == 2:
-            # mode is a simple binary mode
-            index = int(self.smoothed_frn_detected)# smoothed_detected is a low-pass filtered detection
-            # index = 0
-            move_or_call(actions[index])
-        elif callable(actions):
-            actions()  # this handles what to do regardless of if detected or not
+        # Spin in place to look for the green ball
+        self.move(0, 90, 1.0)
 
     def control(self):
-        if self.smoothed_foe_detected:
-            self.set_rgb("yellow")
-        elif self.smoothed_frn_detected:
+        if self.smoothed_frn_detected:
             self.set_rgb("green")
+        elif self.smoothed_foe_detected:
+            self.set_rgb("red")
         else:
             self.set_rgb("blue")
 
-        self.stuck.cycle(self.distance, self.smoothed_foe_detected)
+        # Use frn_detected (green ball) for state transitions
+        self.stuck.cycle(self.distance, self.smoothed_frn_detected)
 
     def main_loop(self):
         avg_fps = self.fps_averager(self.fps)  # feed the averager
@@ -360,21 +344,24 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.frn_detected: bool = frn_biggest_contour_area > 300
         self.foe_detected: bool = foe_biggest_contour_area > 300  # did we detect something of interest?
         frame_size = frame_clean.shape[1]
-        if self.foe_detected:
-            M = cv2.moments(foe_biggest_contour)
+        
+        # Calculate position of the green ball (frn)
+        if self.frn_detected:
+            M = cv2.moments(frn_biggest_contour)
             if M['m00'] != 0:
                 cx = int(M['m10'] / M['m00'])
-                self.foe_position = (cx / frame_size) - 0.5
+                self.frn_position = (cx / frame_size) - 0.5
                 # Also store the last time we detected the target
-                self.t_foe_last_detected = time.time()
+                self.t_frn_last_detected = time.time()
         else:
-            # Gradually fade the position if not detected
-            if self.foe_position is not None:
-                self.foe_position *= 0.95  # Gradually reduce the value to zero
+            # If we don't see the green ball, gradually fade the position
+            if self.frn_position is not None:
+                self.frn_position *= 0.95  # Gradually reduce the value to zero
+                if abs(self.frn_position) < 0.01:
+                    self.frn_position = None
 
         self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
         self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
-        # print(bool(smoothed_detected), smoothed_detected)
 
         distance = self.sonar.getDistance()
         if round(distance) == 5000:
@@ -386,12 +373,12 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
-        if self.foe_detected:
-            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
-            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
-        elif self.frn_detected:
+        if self.frn_detected:
             self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
             self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
+        elif self.foe_detected:
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
+            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
         else:
             self.draw_text(annotated_image, range_bgr["black"], "None")
 
