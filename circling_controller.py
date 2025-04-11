@@ -34,7 +34,6 @@ dict_names |= {
     "random_turn_time",
     "turn_orientation",
     "circle_direction",
-    "circle_offset",
 }
 
 
@@ -154,10 +153,10 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         
         # Parameters for circling behavior
         self.circle_direction = 1  # 1 for clockwise, -1 for counter-clockwise
-        self.circle_offset = 0.3   # Target position offset from center for circling
-        self.circle_speed = 50     # Forward speed while circling
+        self.circle_speed = 60     # Forward speed while circling
 
         self.frn_position = None
+        self.frn_section = None    # Which section of the screen the ball is in (1-4)
         self.t_frn_last_detected = None
 
         self.search_modes = {
@@ -235,59 +234,70 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         Try to reacquire the green ball by moving towards its last known position
         """
         self.current_state_name = "Reacquire"
-        if self.frn_position is None:
-            # If we have no idea where the target is, just spin in place
-            self.move(0, 90, self.circle_direction * 1.0)
-        else:
-            # Try to get back to the circling position
-            desired_position = self.circle_offset * self.circle_direction
-            position_error = self.frn_position - desired_position
+        
+        # If we don't know where the ball is, spin in place
+        if self.frn_section is None:
+            self.move(0, 90, 1.0)
+            return
             
-            # If we're far from the desired position, move to get back there
-            if abs(position_error) > 0.2:
-                if position_error < 0:  # Need to move left
-                    self.move(30, 90, -0.8)
-                else:  # Need to move right
-                    self.move(30, 90, 0.8)
+        # If we have a last known section, try to get back to it
+        if self.circle_direction > 0:  # Clockwise circling
+            # For clockwise, we want the ball in section 4 (rightmost)
+            if self.frn_section < 3:  # Ball is too far left
+                self.move(30, 90, 0.8)  # Turn right to get ball more to the right
             else:
-                # We're close to the right position, move forward to continue circling
-                self.move(40, 90, self.circle_direction * 0.5)
+                self.move(50, 90, -0.3)  # Move forward with slight left turn to circle
+        else:  # Counter-clockwise circling
+            # For counter-clockwise, we want the ball in section 1 (leftmost)
+            if self.frn_section > 2:  # Ball is too far right
+                self.move(30, 90, -0.8)  # Turn left to get ball more to the left
+            else:
+                self.move(50, 90, 0.3)  # Move forward with slight right turn to circle
 
     def chase(self):
         """
-        Circle around the green ball by keeping it at an offset from the center
+        Circle around the green ball using a simple section-based approach
         """
         self.current_state_name = "Circle"
         
-        if self.frn_position is None:
-            # If no position data, just spin in place
-            self.move(0, 90, self.circle_direction * 1.0)
+        # If we don't know where the ball is, spin in place
+        if self.frn_section is None:
+            self.move(0, 90, 1.0)
             return
             
-        # Calculate the desired position offset based on circle direction
-        # For clockwise circling, we want to keep the target on the right side
-        # For counter-clockwise, we want to keep it on the left side
-        desired_position = self.circle_offset * self.circle_direction
-        
-        # Calculate error: how far the actual position is from our desired position
-        position_error = self.frn_position - desired_position
-        
-        # Use PID controller to calculate turning rate
-        turn_rate = self.tracking_pid(position_error)
-        
-        # Adjust forward speed based on how far off we are
-        forward_speed = self.circle_speed
-        
-        # If the target is very far from desired position, reduce forward speed to turn more sharply
-        if abs(position_error) > 0.3:
-            forward_speed = self.circle_speed * 0.7
-            
-        # Move with the calculated parameters
-        self.move(forward_speed, 90, turn_rate)
+        # Simple section-based circling logic
+        if self.circle_direction > 0:  # Clockwise circling
+            # For clockwise, we want the ball in section 4 (rightmost)
+            if self.frn_section == 4:  # Ball is in the desired section
+                # Move forward with a slight left turn to circle clockwise
+                self.move(self.circle_speed, 90, -0.3)
+            elif self.frn_section == 3:  # Ball is close to desired section
+                # Move forward with a moderate left turn
+                self.move(self.circle_speed * 0.8, 90, -0.1)
+            elif self.frn_section == 2:  # Ball is in middle-left
+                # Turn right to get ball more to the right
+                self.move(self.circle_speed * 0.6, 90, 0.5)
+            else:  # Ball is in leftmost section
+                # Turn right more sharply
+                self.move(self.circle_speed * 0.4, 90, 0.8)
+        else:  # Counter-clockwise circling
+            # For counter-clockwise, we want the ball in section 1 (leftmost)
+            if self.frn_section == 1:  # Ball is in the desired section
+                # Move forward with a slight right turn to circle counter-clockwise
+                self.move(self.circle_speed, 90, 0.3)
+            elif self.frn_section == 2:  # Ball is close to desired section
+                # Move forward with a moderate right turn
+                self.move(self.circle_speed * 0.8, 90, 0.1)
+            elif self.frn_section == 3:  # Ball is in middle-right
+                # Turn left to get ball more to the left
+                self.move(self.circle_speed * 0.6, 90, -0.5)
+            else:  # Ball is in rightmost section
+                # Turn left more sharply
+                self.move(self.circle_speed * 0.4, 90, -0.8)
 
     def turn(self):
         self.current_state_name = "Stuck"
-        # When stuck, back up and turn in the circle direction
+        # When stuck, back up and turn
         self.move(-30, 90, self.circle_direction * 0.8)
 
     def search(self):
@@ -345,20 +355,43 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.foe_detected: bool = foe_biggest_contour_area > 300  # did we detect something of interest?
         frame_size = frame_clean.shape[1]
         
-        # Calculate position of the green ball (frn)
+        # Calculate position and section of the green ball (frn)
         if self.frn_detected:
             M = cv2.moments(frn_biggest_contour)
             if M['m00'] != 0:
                 cx = int(M['m10'] / M['m00'])
                 self.frn_position = (cx / frame_size) - 0.5
+                
+                # Determine which section the ball is in (1-4, from left to right)
+                if cx < frame_size * 0.25:
+                    self.frn_section = 1  # Leftmost section
+                elif cx < frame_size * 0.5:
+                    self.frn_section = 2  # Middle-left section
+                elif cx < frame_size * 0.75:
+                    self.frn_section = 3  # Middle-right section
+                else:
+                    self.frn_section = 4  # Rightmost section
+                
                 # Also store the last time we detected the target
                 self.t_frn_last_detected = time.time()
+                
+                # Draw section dividers and highlight the current section
+                for i in range(1, 4):
+                    x = int(frame_size * i * 0.25)
+                    cv2.line(annotated_image, (x, 0), (x, annotated_image.shape[0]), (0, 0, 0), 1)
+                
+                # Highlight the section containing the ball
+                section_start = int(frame_size * (self.frn_section - 1) * 0.25)
+                section_end = int(frame_size * self.frn_section * 0.25)
+                cv2.rectangle(annotated_image, 
+                             (section_start, 0), 
+                             (section_end, 20), 
+                             (0, 255, 0), 
+                             -1)  # Filled rectangle
         else:
-            # If we don't see the green ball, gradually fade the position
-            if self.frn_position is not None:
-                self.frn_position *= 0.95  # Gradually reduce the value to zero
-                if abs(self.frn_position) < 0.01:
-                    self.frn_position = None
+            # If we don't see the green ball, gradually lose confidence in its position
+            if time.time() - (self.t_frn_last_detected or 0) > 1.0:
+                self.frn_section = None
 
         self.smoothed_frn_detected = self.frn_boolean_detection_averager(self.frn_detected)  # feed the averager
         self.smoothed_foe_detected = self.foe_boolean_detection_averager(self.foe_detected)
@@ -375,7 +408,8 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         # draw annotations of detected contours
         if self.frn_detected:
             self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
-            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
+            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], 
+                          f"{self.frn_detect_color} - Section {self.frn_section}")
         elif self.foe_detected:
             self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
             self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
