@@ -20,7 +20,7 @@ class MillingProgram(camera_binary_program.CameraBinaryProgram):
         if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
             self.move(100, 90, -0.5)  # Control robot movement function
         else:
-            self.move(100, 90, 0.3)
+            self.move(100, 90, 0.6)
 
 
 def get_parser(parser, subparsers=None):
