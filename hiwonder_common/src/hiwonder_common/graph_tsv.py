@@ -6,8 +6,8 @@ from ast import literal_eval as eval
 
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 import matplotlib as mpl
+from matplotlib import pyplot as plt
 
 try:
     from itertools import pairwise
@@ -94,7 +94,7 @@ def get_moves(data):
             if si > sn:
                 xnot.append(xi)
         if not sense.empty and sense.iloc[-1]:
-            xnot.append(len(sense) - 1)
+            xnot.append(ts.iloc[-1])
 
     return ts, v, w, sense, xsen, xnot
 
