@@ -26,6 +26,7 @@ import HiwonderSDK.mecanum as mecanum
 import hiwonder_common.statistics_tools as st
 import hiwonder_common.project as project
 import hiwonder_common.env_tools as envt
+import wsrgb
 
 # typing
 from typing import Any, Union
@@ -100,7 +101,6 @@ class UDP_Listener:
             time.sleep(0.01)
         if self.thread.is_alive():
             print("Timed out wating for UDP Listener to die.")
-
 
 
 range_bgr = {
@@ -282,9 +282,7 @@ class Program:
             b, g, r = range_bgr[color]
         else:
             r, g, b = color
-        self.board.RGB.setPixelColor(0, self.board.PixelColor(r, g, b))
-        self.board.RGB.setPixelColor(1, self.board.PixelColor(r, g, b))
-        self.board.RGB.show()
+        wsrgb.set_pixels(12, [(r, g, b)] * 2)
 
     def move(self, v, a, w):
         # linear power [0, 100], direction angle [0, 360] (90 is forwards), yaw angular speed [-2,2]
