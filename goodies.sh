@@ -6,7 +6,7 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 
-BASHRC='~/.bashrc'
+BASHRC=$(realpath ~/.bashrc)
 
 function update_bashrc {
     LINE=$1  # arg 1
@@ -19,6 +19,12 @@ function update_bashrc {
     else
         return 1
     fi
+}
+
+function removefrom_bashrc {
+    LINE=$1
+    grep -v "$LINE" $BASHRC > temp && mv temp $BASHRC
+    return
 }
 
 
@@ -41,20 +47,38 @@ then
 	source ~/.bashrc
 fi
 
-git clone --depth=1 https://github.com/amix/vimrc.git /opt/vim_runtime
-sh ~/.vim_runtime/install_awesome_vimrc.sh
+sudo git clone --depth=1 https://github.com/amix/vimrc.git /opt/vim_runtime
 # to install for all users with home directories, note that root will not be included
-sh /opt/vim_runtime/install_awesome_parameterized.sh /opt/vim_runtime --all
+sudo bash /opt/vim_runtime/install_awesome_parameterized.sh /opt/vim_runtime --all
+sudo bash /opt/vim_runtime/install_awesome_parameterized.sh /opt/vim_runtime root
 
 # if zoxide is not installed, install it
 if ! command -v zoxide &> /dev/null
 then
-	sudo apt zoxide -y
-	update_bashrc "eval \"$(zoxide init bash)\""
-	update_bashrc "alias cd=z"
+	echo "Installing zoxide"
+	curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+	echo "updating bashrc with zoxide init"
+	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
+	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
+else
+	echo "updating bashrc with zoxide init"
+	update_bashrc "export PATH=\"\$HOME/.local/bin:\$PATH\""
+	update_bashrc "eval \"\$(zoxide init bash --cmd cd)\""
 fi
 
-sudo apt install ncdu bat aptitude fzf vim -y
+# if fzf is not installed, install it
+if ! command -v fzf &> /dev/null
+then
+	echo "Installing fzf"
+	git clone --depth 1 https://github.com/junegunn/fzf.git $HOME/.fzf
+	$HOME/.fzf/install --all
+fi
+
+# remove old aliases
+removefrom_bashrc "eval \"\$(zoxide init bash)\""
+removefrom_bashrc "alias cd=z"
+
+sudo apt install ncdu bat aptitude vim -y
 
 update_bashrc "alias bat='batcat'"
 

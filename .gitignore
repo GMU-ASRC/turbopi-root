@@ -2,6 +2,7 @@
 !.gitignore
 !.gitattributes
 
+/setupscripts/
 
 /TurboPi/
 /create_ap/
