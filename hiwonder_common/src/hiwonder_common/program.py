@@ -161,6 +161,8 @@ class Program:
 
         GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+        wsrgb.setup_default_pixels()
+
         self.udp_listener = self.UDP_LISTENER_CLASS(self)
         self.udp_listener.start()
 

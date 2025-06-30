@@ -81,4 +81,4 @@ def setup_default_pixels(
     channel=0,
     invert=False,
 ):
-    pass
+    setup(pin, n, f, dma_channel, invert, brightness, channel)
