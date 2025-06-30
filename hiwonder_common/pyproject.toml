@@ -11,6 +11,13 @@ license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
+dependencies = [
+    "numpy",
+    "rpi-gpio",
+    "pyyaml",
+    "opencv-python",
+    "smbus2",
+]
 
 # [project.urls]
 # Homepage = "https://github.com/pypa/sampleproject"
