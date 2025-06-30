@@ -5,7 +5,7 @@ authors = [
   { name="Kevin Zhu", email="kzhu4@gmu.edu" },
 ]
 description = "common library of tools for HiWonder TurboPi"
-readme = "README.md"
+# readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 classifiers = [
