@@ -208,10 +208,8 @@ class Project(FolderlessProject):
             if s.lower() not in ('y', 'yes'):
                 print("Exiting. Your filesystem has not been modified.")
                 sys.exit(1)
-            else:
-                create_parents = True
         print(f"Creating project folder at {self.root}")
-        ensure_dir_exists(self.root, parents=create_parents)
+        ensure_dir_exists(self.root, parents=True)
 
     @property
     def logfile_path(self):
