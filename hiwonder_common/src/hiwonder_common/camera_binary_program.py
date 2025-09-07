@@ -13,7 +13,7 @@ import numpy as np
 import cv2
 
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.program import Program, main, range_bgr
+from hiwonder_common.program import Program, main, range_rgb
 import hiwonder_common.program  # modifies PATH
 
 # import after path modification
@@ -29,6 +29,19 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
 dict_names = Program.dict_names
 dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager'}  # noqa: E501
+
+
+def rgb2bgr(rgb):
+    return tuple(reversed(rgb[:3])) + rgb[3:]
+
+
+class RangeBGR:
+    @staticmethod
+    def __getitem__(key):
+        return rgb2bgr(range_rgb[key])
+
+
+range_bgr = RangeBGR()
 
 
 class CameraBinaryProgram(Program):
@@ -118,7 +131,7 @@ class CameraBinaryProgram(Program):
     def main_loop(self):
         self.moves_this_frame = []
         avg_fps = self.fps_averager(self.fps)  # feed the averager
-        raw_img = self.camera.frame
+        raw_img = self.camera.frame  # This camera outputs BGR color
         if raw_img is None:
             time.sleep(0.01)
             return

@@ -8,7 +8,7 @@ import argparse
 import numpy as np
 
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.camera_binary_program import range_bgr
+from hiwonder_common.camera_binary_program import range_rgb
 import hiwonder_common.camera_binary_program as camera_binary_program
 
 
