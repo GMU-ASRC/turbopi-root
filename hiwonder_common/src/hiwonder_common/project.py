@@ -15,7 +15,8 @@ import yaml
 
 
 RE_CONTAINS_SEP = re.compile(r"[/\\]")
-DEFAULT_PROJECT_BASEPATH = pathlib.Path("logs")
+DEFAULT_HOME = pathlib.Path("/home/pi")
+DEFAULT_PROJECT_BASEPATH = DEFAULT_HOME / 'logs'
 LOGFILE_NAME = "running.log"
 RUNINFO_NAME = "runinfo.yaml"
 ARTIFACTS_DIR_NAME = "artifacts"
@@ -95,6 +96,8 @@ def get_config_dict(obj):
 
 
 cache = {}
+
+
 def ensure_dir_exists(path: os.PathLike, parents=True, exist_ok=True, **kwargs):
     global cache
     path = pathlib.Path(path)
@@ -178,6 +181,15 @@ class Project(FolderlessProject):
 
     def make_root_interactive(self):
         create_parents = False
+        if self.root is None:
+            raise ValueError("Project root is None. Cannot make root interactive.")
+
+        creating_default_project = (
+            self.root.parent == DEFAULT_PROJECT_BASEPATH  # it's the default project basepath
+            and self.root.parent.resolve().expanduser().is_relative_to(DEFAULT_HOME)  # and it's in /home/pi
+            and DEFAULT_HOME.is_dir()  # and /home/pi exists  (in case we're not on the pi)
+        )
+
         if self.root.is_dir():
             s = input(f"Project folder already exists:\n\t{str(self.root)}\n'y' to continue, 'rm' to delete the contents of the folder, anything else to exit. ")  # noqa: E501
             if s.lower() not in ('y', 'yes', 'rm'):
@@ -186,7 +198,9 @@ class Project(FolderlessProject):
             if s.lower() == 'rm':
                 shutil.rmtree(self.root)   # type: ignore[reportArgumentType]
                 print(f"Deleted {self.root}.")
-        elif not self.root.parent.is_dir():
+        elif not self.root.parent.is_dir() and not creating_default_project:
+            # if the place to put the project doesn't exist, we need to ask the user if they want to create it
+            # unless we're creating the default project basepath, in which case skip asking and just create it
             print("WARNING: You're trying to put the project in")
             print(str(self.root.parent))
             print("but some part of it does not exist! Would you like to create it?")
