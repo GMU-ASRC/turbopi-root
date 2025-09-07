@@ -118,7 +118,6 @@ range_rgb = {
 
 
 class Program:
-    name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
     UDP_LISTENER_CLASS = UDP_Listener
 

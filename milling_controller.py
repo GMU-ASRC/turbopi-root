@@ -13,7 +13,6 @@ import hiwonder_common.camera_binary_program as camera_binary_program
 
 
 class MillingProgram(camera_binary_program.CameraBinaryProgram):
-    name = "MillingProgram"
 
     def control(self):
         self.set_rgb('green' if bool(self.smoothed_detected) else 'red')

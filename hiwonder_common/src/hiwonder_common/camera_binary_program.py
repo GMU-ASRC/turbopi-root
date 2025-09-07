@@ -45,7 +45,6 @@ range_bgr = RangeBGR()
 
 
 class CameraBinaryProgram(Program):
-    name = "BinaryProgram"
     dict_names = dict_names
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
