@@ -40,6 +40,10 @@ def get_last_move(moves):
         return float('nan')
 
 
+def get_start_time(data):
+    return int(data.iloc[0, 0])
+
+
 def convert_time_from_start(data, start=None):
     tcol = data.iloc[:, 0].name
     start = start or data[tcol][0]
@@ -65,7 +69,7 @@ def slice_by_time(data, start=None, end=None, max_length=None):
     first_idx = np.argmax(ts >= a)  # returns 0 if not found
     last_idx = np.argmax(ts >= b)
     if first_idx == last_idx or a >= b:
-        raise ValueError("All data was excluded.")
+        return data.iloc[0:0]
     return data.iloc[first_idx:last_idx]
 
 
@@ -102,6 +106,9 @@ def get_moves(data):
 def plot_single(fig, ax, data):
     ax.cla()
     axw = ax.twinx()
+
+    if data.empty:
+        return fig, ax, axw
 
     ts, v, w, sense, xsen, xnot = get_moves(data)
 
@@ -176,10 +183,13 @@ def read_file(filename):
     return pd.read_csv(filename, sep=sep, skiprows=[], parse_dates=True)
 
 
-def data_from_file(filename, offset, offset_end, length):
+def data_from_file(filename, offset, length, offset_end=None, start=None, end=None):
     data = read_file(filename)
-    data = convert_time_from_start(data)
-    end = data.iloc[-1, 0] - offset_end if offset_end is not None else None
+    data = convert_time_from_start(data, start=start)
+    if end is not None and offset_end is not None:
+        raise ValueError("Cannot specify both offset and offset_end.")
+    if offset_end is not None:
+        end = data.iloc[-1, 0] - offset_end
     try:
         return slice_by_time(data, start=offset, end=end, max_length=length)
     except ValueError as err:
@@ -205,7 +215,10 @@ if __name__ == "__main__":
 
     plt.rcParams["figure.figsize"] = [7.00, 5.00]
     try:
-        data = data_from_file(filename, args.offset, args.offset_end, args.length)
+        data = data_from_file(filename,
+                              offset=args.offset,
+                              length=args.length,
+                              offset_end=args.offset_end)
     except ValueError as err:
         print(err)
         sys.exit(1)
