@@ -168,6 +168,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             'straight': [(50, 90, 0), (50, 90, 0)],
             'circle': [(50, 90, 0.5), (50, 90, 0.5)],
             'spin': [(0, 90, 1.5), (0, 90, 1.5)],
+            'shell': [(100, 90, 0.25), (100, 90, -0.25)],
             'spiral': self.spiral1,
             'random': self.random_walk
         }
