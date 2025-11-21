@@ -41,7 +41,7 @@ class CameraBinaryProgram(Program):
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
         self.preview_size = (640, 480)
 
-        self.target_color = ('green')
+        self.target_color = ('red')
 
         self.camera: Camera.Camera | None = None
 
@@ -97,7 +97,7 @@ class CameraBinaryProgram(Program):
             Program.stop(self, True, silent)
 
     def control(self):
-        self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
+        self.set_rgb('red' if bool(self.smoothed_detected) else 'red')
         if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
             self.move(100, 90, -0.5)  # Control robot movement function
         else:
