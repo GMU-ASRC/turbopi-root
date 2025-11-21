@@ -14,8 +14,8 @@ import hiwonder_common.program as program
 
 class ConstantSpeedProgram(program.Program):
     name = "ConstantSpeedTest"
-    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=True) -> None:
-        super().__init__(args, post_init=False, board=board, name=name, disable_logging=True)
+    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
+        super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
         self.outputs = (args.forward_velocity, args.direction_vector, args.turning_rate)
 
         if post_init:
@@ -24,9 +24,9 @@ class ConstantSpeedProgram(program.Program):
     def control(self):
         self.set_rgb('blue')
 
-        def my_move(v, dt)
+        def my_move(v, dt):
             self.move(v, 90, 0)
-            self.detection_log += f"{t}\t{repr(self.moves_this_frame[-1])}\n"
+            self.detection_log += f"{time.time_ns()}\t{repr(self.moves_this_frame[-1])}\n"
             time.sleep(dt)
 
         run_time = 10
@@ -34,6 +34,7 @@ class ConstantSpeedProgram(program.Program):
             my_move(v, run_time)
             my_move(0, 3)
             my_move(-v, run_time)
+            my_move(0, 3)
 
     def main_loop(self):
         self.moves_this_frame = []
