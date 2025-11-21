@@ -36,6 +36,8 @@ class ConstantSpeedProgram(program.Program):
             my_move(-v, run_time)
             my_move(0, 3)
 
+        self.stop()
+
     def main_loop(self):
         self.moves_this_frame = []
         _avg_fps = self.fps_averager(self.fps)  # feed the averager
