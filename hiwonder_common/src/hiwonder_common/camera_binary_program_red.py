@@ -97,8 +97,8 @@ class CameraBinaryProgram(Program):
             Program.stop(self, True, silent)
 
     def control(self):
-        self.set_rgb('red' if bool(self.smoothed_detected) else 'red')
-        if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
+        self.set_rgb('red' if bool(self.smoothed_detected_red) else 'blue')
+        if self.smoothed_detected_red:  # smoothed_detected_red is a low-pass filtered detection
             self.move(100, 90, -0.5)  # Control robot movement function
         else:
             self.move(100, 90, 0.5)
@@ -106,16 +106,16 @@ class CameraBinaryProgram(Program):
     def control_wrapper(self):
         self.control()
         if self.detection_log:
-            self.history.append([time.time_ns(), self.detected, self.smoothed_detected, self.moves_this_frame])
+            self.history.append([time.time_ns(), self.detected, self.smoothed_detected_red, self.moves_this_frame])
             self.log_detection()
 
     def log_detection(self):
-        t, detected, smoothed_detected, moves_this_frame = self.history[-1]
-        self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected))}\t{repr(moves_this_frame)}\n"
+        t, detected, smoothed_detected_red, moves_this_frame = self.history[-1]
+        self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected_red))}\t{repr(moves_this_frame)}\n"
 
     def log_detection_header(self):
         n = self.boolean_detection_averager.n
-        self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
+        self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected_red [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
     def main_loop(self):
         self.moves_this_frame = []
@@ -153,7 +153,7 @@ class CameraBinaryProgram(Program):
         biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
         self.detected: bool = biggest_contour_area > 300  # did we detect something of interest?
 
-        self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
+        self.smoothed_detected_red = self.boolean_detection_averager(self.detected)  # feed the averager
 
         self.control_wrapper()  # ################################
 
