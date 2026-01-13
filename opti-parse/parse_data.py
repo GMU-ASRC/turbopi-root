@@ -2,18 +2,8 @@ import io, re
 
 import pandas as pd
 
-def cleanup_csv(csv_path: str) -> pd.DataFrame:
-    with open(csv_path, "r") as f:
-        content = f.read()
-
-    # NOTE: First line provides extra information about the captured data
-    # TODO: parse this information and turn it into something readable in `stdout`.
-    first_line_end = content.find("\n")
-    info = content[:first_line_end]
-
-    data = content[first_line_end:].strip()
-    df = pd.read_csv(io.StringIO(data))
-
+def cleanup_data_csv(csv_data: str) -> pd.DataFrame:
+    df = pd.read_csv(io.StringIO(csv_data))
     # NOTE: The captured data provides a lot of extra detail that won't be necessary
     # when parsing this info such as the position (x,y,z) of all the markers, etc.
     # Using the markers, the opti-tracking software creates a rigidbody with position
@@ -49,8 +39,29 @@ def cleanup_csv(csv_path: str) -> pd.DataFrame:
     }, inplace=True)
     return df
 
+def setup_csv(csv_path: str, print_info: bool = True) -> pd.DataFrame:
+    with open(csv_path, "r") as f:
+        content = f.read()
+
+    # NOTE: First line provides extra information about the captured data
+    # TODO: parse this information and turn it into something readable in `stdout`.
+    first_line_end = content.find("\n")
+    info = content[:first_line_end].strip()
+    if print_info:
+        values: list[str] = info.split(',')
+        print("Info about data captured from opti-track camera:")
+        # TODO: convert to dict, if needed
+        for i in range(0, len(values), 2):
+            k, v = values[i], values[i+1]
+            print(f"{k:>25}: {v}")
+
+    data = content[first_line_end:].strip()
+    return cleanup_data_csv(data)
+
+
 actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
 sample_csv_path: str = "sample.csv"
-df = cleanup_csv(sample_csv_path)
+
+df = setup_csv(sample_csv_path)
 with open("test.csv", "w") as f:
     print(df, file=f)
