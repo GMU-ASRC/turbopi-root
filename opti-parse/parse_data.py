@@ -6,6 +6,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+# NOTE: For simplicity, if any function accepts a dataframe, any modifications done to it
+# be in-place, not on a clone of it.
+
 def format_column_name(quantity: str, dimension: str):
     q = quantity.upper()[0]
     d = dimension.lower()
@@ -80,8 +83,7 @@ def create_sample_csv(orig_df: pd.DataFrame, n: int = 100, start: int = 0) -> pd
     end = len(orig_df) if n < 0 else start + n
     return orig_df.iloc[start:end]
 
-def compute_distances(orig_df: pd.DataFrame) -> pd.DataFrame:
-    df = orig_df.copy()
+def compute_distances(df: pd.DataFrame) -> pd.DataFrame:
     pos_col = "Position"
     dims = ['x', 'y', 'z']
 
@@ -96,32 +98,53 @@ def compute_distances(orig_df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def detect_stops(df: pd.DataFrame) -> pd.DataFrame:
+def identify_movement_ranges(df: pd.DataFrame) -> list[tuple[int, int]]:
     df = compute_distances(df)
 
     # NOTE: Considered as "moved" if delta between two positions is more than 2mm
     # between two frames
     # TODO: find a better way to handle this (because it could be that some robots travel
     # a distance of less than 2mm between frames.)
-    THRESHOLD: float = 2.0
+    THRESHOLD: float = 1.5
     dist = df[f"d_P"].to_numpy(dtype=np.float64)
     df[f"moved"] = moved = np.where(dist > THRESHOLD, 1, 0)
 
-    stop_marks: list[float] = []
-    for i in range(0, len(moved)-1):
-        if moved[i] != moved[i+1]:
-            stop_marks.append(i+1)
+    stop_marks: list[int] = []
+    # for i in range(0, len(moved)-3):
+    #     temp = moved[i] + moved[i+1] + moved[i+2] + moved[i+3]
+    #     if temp == 2:
+    #         stop_marks.append(i+1)
+
+    ind: int = 0
+    while ind < len(moved)-3:
+        temp = moved[ind] + moved[ind+1] + moved[ind+2] + moved[ind+3]
+        if temp == 2:
+            stop_marks.append(ind+1)
+            # NOTE: once a change in movement is detected, jump a few values forward,
+            # to prevent the detection of a change in movement very close to one another.
+            ind += 5
+        else:
+            ind += 1
+
 
     # NOTE: Only needed for visualization
-    # plot_points(
-    #     np.arange(0, len(dist), dtype=int),
-    #     np.array([0, *np.cumsum(dist[1:])])   # cumulative distance sum
-    #     v_hlines=stop_marks
-    # )
+    plot_points(
+        np.arange(0, len(dist), dtype=int),
+        np.array([0, *np.cumsum(dist[1:])]),   # cumulative distance sum
+        v_hlines=stop_marks
+    )
 
-    return df
+    move_ranges: list[tuple[int, int]] = []
+    for i in range(0, len(stop_marks), 2):
+        move_ranges.append((stop_marks[i], stop_marks[i+1]))
 
-def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[float] = [],
+    print(move_ranges)
+    print(len(move_ranges))
+
+    df.to_csv("test.csv")
+    return move_ranges
+
+def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[int] = [],
     out_path: str = "plot.svg"
 ) -> None:
     """A simple utility function that allows for graphing via matplotlib"""
@@ -130,6 +153,22 @@ def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[float] = [],
     y_min, y_max = ax.get_ylim()
     ax.vlines(x=v_hlines, ymin=y_min, ymax=y_max, colors='r', linestyles="dashed")
     plt.savefig(out_path)
+
+
+def compute_speeds(df: pd.DataFrame) -> None:
+    move_ranges = identify_movement_ranges(df)
+    time = df["Time (seconds)"].to_numpy(dtype=np.float64)
+    dists = df["d_P"].to_numpy(dtype=np.float64)
+
+    values = [100, -100, 90, -90, 80, -80, 70, -70, 60, -60, 50, -50]
+
+    for i, (start, end) in enumerate(move_ranges):
+        # Speed in mm/s
+        speed_mmps = np.sum(dists[start:end]) / (time[end] - time[start])
+        # Speed in m/s
+        speed_mps = speed_mmps / 1000
+        print(f"{values[i]:>4}%: {speed_mps:.3} m/s")
+
 
 actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
 sample_csv_path: str = "sample.csv"
@@ -146,8 +185,6 @@ if len(sys.argv) == 2 and sys.argv[1] == "redo":
     print("Recreated samples")
 
 info, df = setup_csv(sample_csv_path, cleanup=False)
-other_df = detect_stops(df)
-# other_df.to_csv("test.csv", float_format=lambda x: f"{x:.2}")
-other_df.to_csv("test.csv")
+compute_speeds(df)
 # with open("test.txt", "w") as f:
 #     print(other_df, file=f)
