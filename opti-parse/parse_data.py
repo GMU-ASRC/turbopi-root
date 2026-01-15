@@ -83,7 +83,7 @@ def create_sample_csv(orig_df: pd.DataFrame, n: int = 100, start: int = 0) -> pd
     end = len(orig_df) if n < 0 else start + n
     return orig_df.iloc[start:end]
 
-def compute_distances(df: pd.DataFrame) -> pd.DataFrame:
+def compute_distances(df: pd.DataFrame) -> None:
     pos_col = "Position"
     dims = ['x', 'y', 'z']
 
@@ -96,16 +96,15 @@ def compute_distances(df: pd.DataFrame) -> pd.DataFrame:
     # Distance formula: sqrt(x^2 + y^2 + z^2)
     df[f"d_P"] = np.sqrt(d_p['x']*d_p['x'] + d_p['y']*d_p['y'] + d_p['z']*d_p['z'])
 
-    return df
 
 def identify_movement_ranges(df: pd.DataFrame) -> list[tuple[int, int]]:
-    df = compute_distances(df)
+    compute_distances(df)
 
     # NOTE: Considered as "moved" if delta between two positions is more than 2mm
     # between two frames
     # TODO: find a better way to handle this (because it could be that some robots travel
     # a distance of less than 2mm between frames.)
-    THRESHOLD: float = 1.5
+    THRESHOLD: float = 2
     dist = df[f"d_P"].to_numpy(dtype=np.float64)
     df[f"moved"] = moved = np.where(dist > THRESHOLD, 1, 0)
 
