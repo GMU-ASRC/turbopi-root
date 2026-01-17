@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-import io, re
-import sys
+import io, re, sys, time
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import ahrs
 
 # NOTE: For simplicity, if any function accepts a dataframe, any modifications done to it
 # be in-place, not on a clone of it.
@@ -104,35 +104,32 @@ def identify_movement_ranges(df: pd.DataFrame) -> list[tuple[int, int]]:
     # between two frames
     # TODO: find a better way to handle this (because it could be that some robots travel
     # a distance of less than 2mm between frames.)
-    THRESHOLD: float = 2
+    THRESHOLD: float = 2.0
     dist = df[f"d_P"].to_numpy(dtype=np.float64)
     df[f"moved"] = moved = np.where(dist > THRESHOLD, 1, 0)
 
     stop_marks: list[int] = []
-    # for i in range(0, len(moved)-3):
-    #     temp = moved[i] + moved[i+1] + moved[i+2] + moved[i+3]
-    #     if temp == 2:
-    #         stop_marks.append(i+1)
-
     ind: int = 0
     while ind < len(moved)-3:
         temp = moved[ind] + moved[ind+1] + moved[ind+2] + moved[ind+3]
         if temp == 2:
             stop_marks.append(ind+1)
-            # NOTE: once a change in movement is detected, jump a few values forward,
-            # to prevent the detection of a change in movement very close to one another.
+            # NOTE: once a change in movement is detected, jump a few values forward, to
+            # prevent the detection of a change in movement very close to one another.
             ind += 5
         else:
+            # NOTE: Otherwise, just keep iterating through the values normally
             ind += 1
 
 
-    # NOTE: Only needed for visualization
-    plot_points(
-        np.arange(0, len(dist), dtype=int),
-        np.array([0, *np.cumsum(dist[1:])]),   # cumulative distance sum
-        v_hlines=stop_marks
-    )
+    # plot_points(
+    #     np.arange(0, len(dist), dtype=int),
+    #     np.array([0, *np.cumsum(dist[1:])]), # cumulative distance sum
+    #     v_hlines=stop_marks
+    # )
 
+    # Convert from the 'stop' marks to the start and end of time periods
+    # where the robot moves.
     move_ranges: list[tuple[int, int]] = []
     for i in range(0, len(stop_marks), 2):
         move_ranges.append((stop_marks[i], stop_marks[i+1]))
@@ -143,6 +140,8 @@ def identify_movement_ranges(df: pd.DataFrame) -> list[tuple[int, int]]:
     df.to_csv("test.csv")
     return move_ranges
 
+
+# NOTE: Only needed for visualization
 def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[int] = [],
     out_path: str = "plot.svg"
 ) -> None:
@@ -154,19 +153,75 @@ def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[int] = [],
     plt.savefig(out_path)
 
 
-def compute_speeds(df: pd.DataFrame) -> None:
+def compute_linear_speeds(df: pd.DataFrame) -> None:
     move_ranges = identify_movement_ranges(df)
     time = df["Time (seconds)"].to_numpy(dtype=np.float64)
     dists = df["d_P"].to_numpy(dtype=np.float64)
 
-    values = [100, -100, 90, -90, 80, -80, 70, -70, 60, -60, 50, -50]
+    powers = [100, -100, 90, -90, 80, -80, 70, -70, 60, -60, 50, -50]
 
     for i, (start, end) in enumerate(move_ranges):
         # Speed in mm/s
         speed_mmps = np.sum(dists[start:end]) / (time[end] - time[start])
         # Speed in m/s
         speed_mps = speed_mmps / 1000
-        print(f"{values[i]:>4}%: {speed_mps:.3} m/s")
+        print(f"{powers[i]:>4}%: {speed_mps:.3} m/s")
+
+def compute_angular_speeds(df: pd.DataFrame) -> None:
+    # NOTE: This format is required (w, x, y, z) for the computations
+    quat_cols = ["R.w", "R.x", "R.y", "R.z"]
+    quats = np.array([
+        df[col].to_numpy(dtype=np.float64) for col in quat_cols
+    ]).T
+
+    # Method A: blog post (https://mariogc.com/post/angular-velocity-quaternions/)
+    def method_a(quats: np.ndarray, dt: float) -> np.ndarray:
+        assert quats.shape[1] == 4, f"A quat array has to have 4 columns; quats.shape = {quats.shape}"
+        def angular_velocities(q1, q2, dt) -> np.ndarray:
+            return (2 / dt) * np.array([
+                q1[0]*q2[1] - q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2],
+                q1[0]*q2[2] + q1[1]*q2[3] - q1[2]*q2[0] - q1[3]*q2[1],
+                q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] - q1[3]*q2[0]])
+
+        omegas = np.array([np.nan, np.nan, np.nan])
+        for i in range(1, quats.shape[0]):
+            prev_q, curr_q = quats[i-1], quats[i]
+            omegas = np.append(omegas, angular_velocities(prev_q, curr_q, dt))
+
+        omegas.resize(quats.shape[0], 3)
+        return omegas
+
+    # Method B: ahrs package (https://github.com/Mayitzin/ahrs)
+    def method_b(quats: np.ndarray, dt: float) -> np.ndarray:
+        """NOTE: This returns an np.array whose shape is (R-1, C) where R and C represent
+        the number of rows and columns of the input np.array."""
+        assert quats.shape[1] == 4, f"A quat array has to have 4 columns; quats.shape = {quats.shape}"
+
+        q_arr = ahrs.QuaternionArray(quats)
+        return q_arr.angular_velocities(dt)
+
+
+    # TODO: replace dt with a calculated value instead of a magic constant, 0.01
+    start = time.time_ns()
+    omegas_a = method_a(quats, 0.01).T
+    diff_a = (time.time_ns() - start) * 1e-6
+
+    start = time.time_ns()
+    omegas_b = method_b(quats, 0.01).T
+    diff_b = (time.time_ns() - start) * 1e-6
+
+    print(f"Method A: {diff_a:.3} ms")
+    print(f"Method B: {diff_b:.3} ms")
+
+    df["omegas_a.x"] = omegas_a[0]
+    df["omegas_a.y"] = omegas_a[1]
+    df["omegas_a.z"] = omegas_a[2]
+
+    df["omegas_b.x"] = [np.nan, *omegas_b[0]]
+    df["omegas_b.y"] = [np.nan, *omegas_b[1]]
+    df["omegas_b.z"] = [np.nan, *omegas_b[2]]
+
+    df.to_csv("my_omegas.csv", index=False)
 
 
 actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
@@ -184,6 +239,5 @@ if len(sys.argv) == 2 and sys.argv[1] == "redo":
     print("Recreated samples")
 
 info, df = setup_csv(sample_csv_path, cleanup=False)
-compute_speeds(df)
-# with open("test.txt", "w") as f:
-#     print(other_df, file=f)
+# compute_linear_speeds(df)
+compute_angular_speeds(df)
