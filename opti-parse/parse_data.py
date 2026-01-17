@@ -173,53 +173,23 @@ def compute_angular_speeds(df: pd.DataFrame) -> None:
     quats = np.array([
         df[col].to_numpy(dtype=np.float64) for col in quat_cols
     ]).T
+    assert quats.shape[1] == 4, f"A quat array has to have 4 columns; quats.shape = {quats.shape}"
+    dt: float = 0.01
 
-    # Method A: blog post (https://mariogc.com/post/angular-velocity-quaternions/)
-    def method_a(quats: np.ndarray, dt: float) -> np.ndarray:
-        assert quats.shape[1] == 4, f"A quat array has to have 4 columns; quats.shape = {quats.shape}"
-        def angular_velocities(q1, q2, dt) -> np.ndarray:
-            return (2 / dt) * np.array([
-                q1[0]*q2[1] - q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2],
-                q1[0]*q2[2] + q1[1]*q2[3] - q1[2]*q2[0] - q1[3]*q2[1],
-                q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] - q1[3]*q2[0]])
+    # Resource for quaternions vs time to angular velocities:
+    #   - Blog: https://mariogc.com/post/angular-velocity-quaternions/
+    #   - Python package: https://github.com/Mayitzin/ahrs
 
-        omegas = np.array([np.nan, np.nan, np.nan])
-        for i in range(1, quats.shape[0]):
-            prev_q, curr_q = quats[i-1], quats[i]
-            omegas = np.append(omegas, angular_velocities(prev_q, curr_q, dt))
+    q_arr = ahrs.QuaternionArray(quats)
+    # NOTE: The ahrs package can compute the angular velocities but requires a constant timestep,
+    # dt. If there isn't a constant dt, using the function presented in the blog might work,
+    # which is calculating the angular velocity of consecutive pairs of quaternions.
+    omegas = np.array([[np.nan]*3, *q_arr.angular_velocities(dt)]).T
 
-        omegas.resize(quats.shape[0], 3)
-        return omegas
-
-    # Method B: ahrs package (https://github.com/Mayitzin/ahrs)
-    def method_b(quats: np.ndarray, dt: float) -> np.ndarray:
-        """NOTE: This returns an np.array whose shape is (R-1, C) where R and C represent
-        the number of rows and columns of the input np.array."""
-        assert quats.shape[1] == 4, f"A quat array has to have 4 columns; quats.shape = {quats.shape}"
-
-        q_arr = ahrs.QuaternionArray(quats)
-        return q_arr.angular_velocities(dt)
-
-
-    # TODO: replace dt with a calculated value instead of a magic constant, 0.01
-    start = time.time_ns()
-    omegas_a = method_a(quats, 0.01).T
-    diff_a = (time.time_ns() - start) * 1e-6
-
-    start = time.time_ns()
-    omegas_b = method_b(quats, 0.01).T
-    diff_b = (time.time_ns() - start) * 1e-6
-
-    print(f"Method A: {diff_a:.3} ms")
-    print(f"Method B: {diff_b:.3} ms")
-
-    df["omegas_a.x"] = omegas_a[0]
-    df["omegas_a.y"] = omegas_a[1]
-    df["omegas_a.z"] = omegas_a[2]
-
-    df["omegas_b.x"] = [np.nan, *omegas_b[0]]
-    df["omegas_b.y"] = [np.nan, *omegas_b[1]]
-    df["omegas_b.z"] = [np.nan, *omegas_b[2]]
+    df["omegas.x"] = omegas[0]
+    df["omegas.y"] = omegas[1]
+    df["omegas.z"] = omegas[2]
+    df["omega"] = np.sqrt(omegas[0]*omegas[0] + omegas[1]*omegas[1] + omegas[2]*omegas[2])
 
     df.to_csv("my_omegas.csv", index=False)
 
