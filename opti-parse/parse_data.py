@@ -94,6 +94,7 @@ def compute_distances(df: pd.DataFrame) -> None:
         df[f"d_{col}"] = d_p[dim] = np.array([np.nan, *np.diff(dim_pos)])
 
     # Distance formula: sqrt(x^2 + y^2 + z^2)
+    # TODO: Look into np.linalg.norm()
     df[f"d_P"] = np.sqrt(d_p['x']*d_p['x'] + d_p['y']*d_p['y'] + d_p['z']*d_p['z'])
 
 
@@ -142,15 +143,70 @@ def identify_movement_ranges(df: pd.DataFrame) -> list[tuple[int, int]]:
 
 
 # NOTE: Only needed for visualization
-def plot_points(xs: np.ndarray, ys: np.ndarray, v_hlines: list[int] = [],
-    out_path: str = "plot.svg"
+def plot_points(xs: np.ndarray, ys: list[tuple[str, np.ndarray]], v_hlines: list[int] = [],
+    out_path: str = "plot.svg", xlabel: str | None = None, ylabel: str | None = None
 ) -> None:
     """A simple utility function that allows for graphing via matplotlib"""
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(xs, ys)
-    y_min, y_max = ax.get_ylim()
-    ax.vlines(x=v_hlines, ymin=y_min, ymax=y_max, colors='r', linestyles="dashed")
+    if xlabel: ax.set_xlabel(xlabel)
+    if ylabel: ax.set_ylabel(ylabel)
+
+    colors = ["red", "green", "blue", "magenta"]
+    for i, (label, y) in enumerate(ys):
+        ax.plot(xs, y, color=colors[i], linestyle="solid", linewidth=2,
+            label=label)
+
+    if len(v_hlines) > 0:
+        y_min, y_max = ax.get_ylim()
+        ax.vlines(x=v_hlines, ymin=y_min, ymax=y_max, colors='r', linestyles="dashed")
+
+    plt.legend(loc="best")
     plt.savefig(out_path)
+
+
+def visualize_data(df: pd.DataFrame) -> None:
+    compute_distances(df)
+    omega_df = df.copy()
+    compute_angular_speeds(omega_df)
+
+    tlabel = tcol ="Time (seconds)"
+    ts = df[tcol].to_numpy(dtype=np.float64)
+    dist_ys = []
+    omega_ys = []
+    for dim in ['x', 'y', 'z']:
+        col = f"d_{format_column_name("position", dim)}"
+        d_dist = df[col].to_numpy(dtype=np.float64)
+        dist_ys.append((f"delta_{dim}", d_dist))
+
+        omega_label = f"omega_{dim}"
+        omega_dim = omega_df[omega_label].to_numpy(dtype=np.float64)
+        omega_ys.append((omega_label, omega_dim))
+
+    # Plot delta distance components
+    plot_points(
+        ts, dist_ys, out_path="delta_position.svg",
+        xlabel=tlabel, ylabel="Distance (mm)"
+    )
+
+    # Plot delta omega (w) components
+    plot_points(
+        ts, omega_ys, out_path="omegas.svg",
+        xlabel=tlabel, ylabel="Angular velocity (rad/s)"
+    )
+
+    # Plot the magnitude of distance
+    dist_mag = np.array([0, *np.cumsum(df["d_P"].to_numpy(dtype=np.float64)[1:])])
+    plot_points(
+        ts, [("Distance", dist_mag)], out_path="dist_mag.svg",
+        xlabel=tlabel, ylabel="Distance (mm)"
+    )
+
+    # Plot the magnitude of omega
+    dist_mag = omega_df["omega"].to_numpy(dtype=np.float64)
+    plot_points(
+        ts, [("omega", dist_mag)], out_path="omega_mag.svg",
+        xlabel=tlabel, ylabel="Angular velocity (rad/s)"
+    )
 
 
 def compute_linear_speeds(df: pd.DataFrame) -> None:
@@ -166,6 +222,7 @@ def compute_linear_speeds(df: pd.DataFrame) -> None:
         # Speed in m/s
         speed_mps = speed_mmps / 1000
         print(f"{powers[i]:>4}%: {speed_mps:.3} m/s")
+
 
 def compute_angular_speeds(df: pd.DataFrame) -> None:
     # NOTE: This format is required (w, x, y, z) for the computations
@@ -186,15 +243,14 @@ def compute_angular_speeds(df: pd.DataFrame) -> None:
     # which is calculating the angular velocity of consecutive pairs of quaternions.
     omegas = np.array([[np.nan]*3, *q_arr.angular_velocities(dt)]).T
 
-    df["omegas.x"] = omegas[0]
-    df["omegas.y"] = omegas[1]
-    df["omegas.z"] = omegas[2]
+    df["omega_x"] = omegas[0]
+    df["omega_y"] = omegas[1]
+    df["omega_z"] = omegas[2]
     df["omega"] = np.sqrt(omegas[0]*omegas[0] + omegas[1]*omegas[1] + omegas[2]*omegas[2])
-
-    df.to_csv("my_omegas.csv", index=False)
 
 
 actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
+# actual_csv_path: str = "optitrack-data/Take 2025-12-05 04.42.50 PM turbopi-01 mich turning.csv"
 sample_csv_path: str = "sample.csv"
 
 # NOTE: The creation of samples is temporary. Will be removed
@@ -209,5 +265,6 @@ if len(sys.argv) == 2 and sys.argv[1] == "redo":
     print("Recreated samples")
 
 info, df = setup_csv(sample_csv_path, cleanup=False)
-# compute_linear_speeds(df)
-compute_angular_speeds(df)
+# visualize_data(df)
+compute_linear_speeds(df)
+# compute_angular_speeds(df)
