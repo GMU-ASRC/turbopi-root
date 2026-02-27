@@ -224,7 +224,9 @@ def compute_linear_speeds(df: pd.DataFrame) -> None:
         print(f"{powers[i]:>4}%: {speed_mps:.3} m/s")
 
 
-def compute_angular_speeds(df: pd.DataFrame) -> None:
+def __compute_angular_speeds_OLD(df: pd.DataFrame) -> None:
+    move_ranges = identify_movement_ranges(df)
+
     # NOTE: This format is required (w, x, y, z) for the computations
     quat_cols = ["R.w", "R.x", "R.y", "R.z"]
     quats = np.array([
@@ -248,9 +250,69 @@ def compute_angular_speeds(df: pd.DataFrame) -> None:
     df["omega_z"] = omegas[2]
     df["omega"] = np.sqrt(omegas[0]*omegas[0] + omegas[1]*omegas[1] + omegas[2]*omegas[2])
 
+def plot_3d_points(df: pd.DataFrame):
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
 
-actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
-# actual_csv_path: str = "optitrack-data/Take 2025-12-05 04.42.50 PM turbopi-01 mich turning.csv"
+    tt = df["Time (seconds)"]
+    colors = []
+    for i in range(len(tt)):
+        v = float(i) / float(len(tt))
+        colors.append([v, v, 1.0])
+
+    ax.scatter(df["P.x"], df["P.y"], df["P.z"], marker="o", c=colors)
+
+    ax.set_xlabel("X Axis (mm)")
+    ax.set_ylabel("Y Axis (mm)")
+    ax.set_zlabel("Z Axis (mm)")
+    plt.show()
+
+def compute_angular_speeds(df: pd.DataFrame) -> None:
+    # NOTE: Apply a circle fit here would provide a better way of finding the
+    # approximate diameter of the circle. Moreover, a R^2 value could be obtained.
+
+    # NOTE: This only works when the turbopi was intentionally told to circle around.
+    # Different linear and angular velocities make the turbopi circle around with
+    # a specific radius.
+
+    # plot_3d_points(df)
+
+    p_x = df[format_column_name('P', 'x')]
+    p_y = df[format_column_name('P', 'y')]
+    p_z = df[format_column_name('P', 'z')]
+    tt = df["Time (seconds)"]
+    positions = np.array([p_x, p_y, p_z]).T
+
+    # NOTE: The computation here takes first position as the start of a circle. 
+    # Then, the distance between it and every other point is computed.
+    orig_dist_from_start = [
+        np.linalg.norm(positions[i] - positions[0])
+        for i in range(len(df))
+    ]
+
+    # NOTE: The process used to find the approximate radius of the circle created
+    # by the turbopi is by first find the frame number and actual distance value
+    # from the starting point. Then, take a slice from the frame number on to the end
+    # of the circle (realistically, end of data ... assuming that the data only
+    # contains a single circle made by the turbopi). Next, find the minimum distance
+    # from the starting point in this new slice.
+
+    max_ind, max = np.argmax(orig_dist_from_start), np.max(orig_dist_from_start)
+
+    dist_from_start = orig_dist_from_start[max_ind:]
+    min_ind, min = np.argmin(dist_from_start), np.min(dist_from_start)
+
+    # Using the frame number (or time) of min and max values, compute time gap
+    # between when the min and max happened. The min and max points are assumed to
+    # mark is assumed to be 'exactly' half of the circle. Therefore, the time between
+    # the min and max points is 'exactly' half of total time taken to create the
+    # entire circle.
+
+    total_time = 2 * abs(tt[min_ind] - tt[max_ind])
+    return np.pi / total_time
+
+# actual_csv_path: str = "optitrack-data/Take 2025-12-05 03.07.49 PM turbopi-01.csv"
+actual_csv_path: str = "optitrack-data/Take 2025-12-05 04.42.50 PM turbopi-01 mich turning.csv"
 sample_csv_path: str = "sample.csv"
 
 # NOTE: The creation of samples is temporary. Will be removed
@@ -267,4 +329,4 @@ if len(sys.argv) == 2 and sys.argv[1] == "redo":
 info, df = setup_csv(sample_csv_path, cleanup=False)
 # visualize_data(df)
 compute_linear_speeds(df)
-# compute_angular_speeds(df)
+print(compute_angular_speeds(df))
