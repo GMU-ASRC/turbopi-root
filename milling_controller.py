@@ -17,9 +17,9 @@ class MillingProgram(camera_binary_program.CameraBinaryProgram):
     def control(self):
         self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
         if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-            self.move(100, 90, -0.5)  # Control robot movement function
+            self.move(100, 90, 0)  # go straight
         else:
-            self.move(100, 90, 0.5)
+            self.move(100, 90, -0.5) # go left
 
 
 def get_parser(parser, subparsers=None):
