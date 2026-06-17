@@ -21,10 +21,15 @@ class MillingProgram(camera_binary_program.CameraBinaryProgram):
 
     def main_loop(self):
         super().main_loop()
-        raw_img = self.camera.frame 
+        raw_img = self.camera.frame
         if raw_img is not None:
             frame = cv2.resize(raw_img, self.preview_size)
             self.writer.write(frame)
+
+    def stop(self, exit=True, silent=False):
+        if getattr(self, 'writer', None):
+            self.writer.release()
+        super().stop(exit, silent)
 
     def control(self):
         self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
