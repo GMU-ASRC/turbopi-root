@@ -16,7 +16,7 @@ import hiwonder_common.camera_binary_program as camera_binary_program
 class MillingProgram(camera_binary_program.CameraBinaryProgram):
 
     def main(self):
-        self.writer = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc(*'XVID'), 30, (640, 480))
+        self.writer = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (640, 480))
         super().main()
 
     def main_loop(self):
