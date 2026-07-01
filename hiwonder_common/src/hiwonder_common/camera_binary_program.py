@@ -125,7 +125,7 @@ class CameraBinaryProgram(Program):
 
     def log_detection(self):
         t, detected, smoothed_detected, moves_this_frame = self.history[-1]
-        self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected))}\t{repr(moves_this_frame)}\n"
+        self.detection_log += f"{t}\t{repr(detected)}\t{repr(smoothed_detected)}\t{repr(moves_this_frame)}\n"
 
     def log_detection_header(self):
         n = next(iter(self.averagers.values())).n
