@@ -28,7 +28,7 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
 
 dict_names = Program.dict_names
-dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager'}  # noqa: E501
+dict_names |= {'preview_size', 'target_colors', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'averagers'}  # noqa: E501
 
 
 def rgb2bgr(rgb):
@@ -65,8 +65,11 @@ class CameraBinaryProgram(Program):
 
         self.servo1: int
         self.servo2: int
-        self.detected = False
-        self.boolean_detection_averager = st.Average(10)
+        self.target_colors = ['green', 'red']
+        # detected are now dicts,
+        self.detected = {color: False for color in self.target_colors} 
+        self.smoothed_detected = {color: 0.0 for color in self.target_colors}
+        self.averagers = {color: st.Average(10) for color in self.target_colors} # one averager per color
         self.moves_this_frame = []
         self.history = []  # movement history
 
@@ -107,10 +110,11 @@ class CameraBinaryProgram(Program):
             Program.stop(self, True, silent)
 
     def control(self):
-        self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
-        if self.smoothed_detected:  # smoothed_detected is a low-pass filtered detection
-            self.move(100, 90, -0.5)  # Control robot movement function
+        if self.smoothed_detected['green']:
+            self.set_rgb('green')
+            self.move(100, 90, -0.5)
         else:
+            self.set_rgb('red')
             self.move(100, 90, 0.5)
 
     def control_wrapper(self):
@@ -124,7 +128,7 @@ class CameraBinaryProgram(Program):
         self.detection_log += f"{t}\t{int(detected)}\t{int(bool(smoothed_detected))}\t{repr(moves_this_frame)}\n"
 
     def log_detection_header(self):
-        n = self.boolean_detection_averager.n
+        n = next(iter(self.averagers.values())).n
         self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
     def main_loop(self):
@@ -150,29 +154,25 @@ class CameraBinaryProgram(Program):
             'open_kernel': np.ones((3, 3), np.uint8),
             'close_kernel': np.ones((3, 3), np.uint8),
         }
-        # extract the LAB threshold
-        threshold = (tuple(self.lab_data[self.target_color][key]) for key in ['min', 'max'])
-        # breakpoint()
-        # run contour detection
-        target_contours = self.color_contour_detection(
-            frame_clean,
-            tuple(threshold),  # type: ignore
-            **contour_args
-        )
-        # The output of color_contour_detection() is sorted highest to lowest
-        biggest_contour, biggest_contour_area = target_contours[0] if target_contours else (None, 0)
-        self.detected: bool = biggest_contour_area > 300  # did we detect something of interest?
-
-        self.smoothed_detected = self.boolean_detection_averager(self.detected)  # feed the averager
+        contours_by_color = {}
+        for color in self.target_colors:
+            threshold = (tuple(self.lab_data[color]['min']), tuple(self.lab_data[color]['max']))
+            contours = self.color_contour_detection(frame_clean, threshold, **contour_args)
+            biggest, area = contours[0] if contours else (None, 0)
+            contours_by_color[color] = (biggest, area)
+            self.detected[color] = area > 300
+            self.smoothed_detected[color] = self.averagers[color](self.detected[color])
 
         self.control_wrapper()  # ################################
 
         # draw annotations of detected contours
-        if self.detected:
-            self.draw_fitted_rect(annotated_image, biggest_contour, range_bgr[self.target_color])
-            self.draw_text(annotated_image, range_bgr[self.target_color], self.target_color)
-        else:
-            self.draw_text(annotated_image, range_bgr['black'], 'None')
+        detected_colors = [c for c in self.target_colors if self.detected[c]]
+        for color in detected_colors:
+            contour, _ = contours_by_color[color]
+            self.draw_fitted_rect(annotated_image, contour, range_bgr[color])
+        label = ', '.join(detected_colors) if detected_colors else 'None'
+        label_color = range_bgr[detected_colors[0]] if detected_colors else range_bgr['black']
+        self.draw_text(annotated_image, label_color, label)
         self.draw_fps(annotated_image, range_bgr['black'], avg_fps)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
