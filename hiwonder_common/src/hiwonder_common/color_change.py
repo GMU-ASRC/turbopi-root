@@ -1,7 +1,7 @@
 import serial
 import time
 
-SERIAL_PORT = 'COM3'
+SERIAL_PORT = '/dev/ttyACM1'
 BAUD = 115200
 
 #{ Color Index }# 
@@ -10,12 +10,10 @@ green = b"0,255,0\n"
 blue = b"0,0,255\n"
 off = b"0,0,0\n"
 
-def change_color(color):
+def change_color(color=off):
     try:
         ser = serial.Serial(SERIAL_PORT, BAUD)
         time.sleep(0.1)
-
-        color.strip().lower()
 
         if color == "red":
             ser.write(red)
@@ -39,7 +37,7 @@ def change_color(color):
 
 if __name__ == '__main__':
     while True:
-        color = input("Color: ")
+        color = input("Color, State of Flash: ").strip().lower()
         if color != "off":
             change_color(color)
         else:
