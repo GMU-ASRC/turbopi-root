@@ -16,6 +16,8 @@ import hiwonder_common.statistics_tools as st
 from hiwonder_common.program import Program, main, range_rgb
 import hiwonder_common.program  # modifies PATH
 
+import hiwonder_common.color_change as color
+
 # import after path modification
 import Camera  # type: ignore
 
@@ -104,6 +106,7 @@ class CameraBinaryProgram(Program):
         if self.camera:
             self.camera.camera_close()
         self.set_rgb('None')
+        color.change_color('off')
         cv2.destroyAllWindows()
         super().stop(False, True)
         if exit:
