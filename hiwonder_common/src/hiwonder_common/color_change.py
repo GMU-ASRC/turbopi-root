@@ -14,34 +14,23 @@ class ColorChange:
         self.off = b"0,0,0\n"
     
     def change_color(self, color='off'):
+        colors = {'red': self.red, 'green': self.green, 'blue': self.blue, 'off': self.off}
+        if color not in colors:
+            print("Invalid Color")
+            return
+
+        ser = None
         try:
             ser = serial.Serial(SERIAL_PORT, BAUD)
             time.sleep(0.1)
-
-            if color == 'red':
-                ser.write(self.red)
-                print("red info sent")
-                ser.close()
-
-            elif color == 'green':
-                ser.write(self.green)
-                print("green info sent")
-                ser.close()
-
-            elif color == 'blue':
-                ser.write(self.blue)
-                print("blue info sent")
-                ser.close()
-            
-            elif color == 'off':
-                ser.write(self.off)
-                print("off info sent")
-                ser.close()
-                
-            else: print("Invalid Color")
+            ser.write(colors[color])
+            print(f"{color} info sent")
 
         except serial.SerialException as e:
             print(f"Error opening or communicating with the serial port: {e}")
+        finally:
+            if ser is not None and ser.is_open:
+                ser.close()
 
 # if __name__ == '__main__':
 #     while True:
