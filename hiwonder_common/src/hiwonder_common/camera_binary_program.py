@@ -16,7 +16,7 @@ import hiwonder_common.statistics_tools as st
 from hiwonder_common.program import Program, main, range_rgb
 import hiwonder_common.program  # modifies PATH
 
-from hiwonder_common.color_change import ColorChange as color
+from hiwonder_common.color_change import ColorChange
 
 # import after path modification
 import Camera  # type: ignore
@@ -51,6 +51,7 @@ class CameraBinaryProgram(Program):
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=disable_logging)
+        self.color = ColorChange()
         self.preview_size = (640, 480)
 
         self.target_color = ('green')
@@ -106,7 +107,7 @@ class CameraBinaryProgram(Program):
         if self.camera:
             self.camera.camera_close()
         self.set_rgb('None')
-        color.change_color('off')
+        self.color.change_color('off')
         cv2.destroyAllWindows()
         super().stop(False, True)
         if exit:
