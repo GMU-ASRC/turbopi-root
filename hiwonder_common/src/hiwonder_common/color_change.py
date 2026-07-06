@@ -1,7 +1,7 @@
 import serial
 import time
 
-SERIAL_PORT = '/dev/ttyACM1'
+SERIAL_PORT = '/dev/pixeltrinkey'
 BAUD = 115200
 
 class ColorChange:
