@@ -65,7 +65,7 @@ class CameraBinaryProgram(Program):
 
         self.servo1: int
         self.servo2: int
-        self.target_colors = ['green', 'red']
+        self.target_colors = ['green', 'red', 'blue']
         # detected are now dicts,
         self.detected = {color: False for color in self.target_colors} 
         self.smoothed_detected = {color: 0.0 for color in self.target_colors}
