@@ -11,17 +11,23 @@ import hiwonder_common.statistics_tools as st
 from hiwonder_common.camera_binary_program import range_rgb
 import hiwonder_common.camera_binary_program as camera_binary_program
 
+import hiwonder_common.color_change as color
 
 class MillingProgram(camera_binary_program.CameraBinaryProgram):
 
     def control(self):
         # self.set_rgb('green' if bool(self.smoothed_detected) else 'red')
         if self.smoothed_detected['green']:  # smoothed_detected is a low-pass filtered detection
-            self.move(100, 90, 0.0)  # Control robot movement function
+            self.color.change_color('green')
+        
         elif self.smoothed_detected['red']:
-            self.move(100, 180, 0.0)
+            self.color.change_color('red')
+        
+        elif self.smoothed_detected['blue']:
+            self.color.change_color('blue')
+        
         else:
-            self.move(0, 90, 0.0)
+            self.color.change_color('off')
 
 
 def get_parser(parser, subparsers=None):
