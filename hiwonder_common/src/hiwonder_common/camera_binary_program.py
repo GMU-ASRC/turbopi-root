@@ -16,7 +16,7 @@ import hiwonder_common.statistics_tools as st
 from hiwonder_common.program import Program, main, range_rgb
 import hiwonder_common.program  # modifies PATH
 
-import hiwonder_common.color_change as color
+from hiwonder_common.color_change import ColorChange as color
 
 # import after path modification
 import Camera  # type: ignore
