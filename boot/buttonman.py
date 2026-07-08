@@ -51,6 +51,27 @@ LED1_PIN = 16
 LED2_PIN = 26
 
 
+def stop_board():
+    try:
+        sys.path.append('/home/pi/TurboPi/')
+        import HiwonderSDK.Board as Board
+        import HiwonderSDK.Sonar as Sonar
+        for i in range(1, 5):
+            Board.setMotor(i, 1)
+            Board.setMotor(i, 0)
+        Board.setBuzzer(0)
+        s = Sonar.Sonar()
+        s.setRGBMode(0)
+        r, g, b = 0, 0, 0
+        for i in range(2):
+            Board.RGB.setPixelColor(i, Board.PixelColor(r, g, b))
+            s.setPixelColor(i, Board.PixelColor(r, g, b))
+        Board.RGB.show()
+        s.show()
+    except Exception:
+        pass
+
+
 def reset_wifi():
     os.system("systemctl stop hw_wifi.service > /dev/null 2>&1")
     os.system("systemctl restart wpa_supplicant.service > /dev/null 2>&1")
@@ -78,7 +99,6 @@ def try_script(path):
         perms = 0o766
         os.chmod(path, perms)
     subprocess.Popen(path)
-
 
 
 class ProcessMismatchError(Exception):
@@ -418,27 +438,10 @@ class ActionMachine(statemachine.StateMachine):
 
     def do_1H(self):
         TaskManager().close_all_registered()
+        stop_board()
 
     def do_2H(self):
         TaskManager().close_all_registered()
-        try:
-            sys.path.append('/home/pi/TurboPi/')
-            import HiwonderSDK.mecanum as mecanum
-            import HiwonderSDK.Board as Board
-            import HiwonderSDK.Sonar as Sonar
-            chassis = mecanum.MecanumChassis()
-            chassis.set_velocity(0, 0, 0)
-            Board.setBuzzer(0)
-            s = Sonar.Sonar()
-            s.setRGBMode(0)
-            r, g, b = 0, 0, 0
-            for i in range(2):
-                Board.RGB.setPixelColor(i, Board.PixelColor(r, g, b))
-                s.setPixelColor(i, Board.PixelColor(r, g, b))
-            Board.RGB.show()
-            s.show()
-        except Exception:
-            pass
 
     def do_3H(self):
         subprocess.Popen("sudo python3 /home/pi/boot/hardware_test.py".split(' '))
