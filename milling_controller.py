@@ -38,6 +38,19 @@ dict_names |= {
 
 INITIAL_SPIRAL_TURN_RATE = 0.7
 
+# 'shell' mode: bang-bang boundary-following controller. The robot drives
+# forward and constantly hunts for the edge of the red (frn) blob: when it
+# can't see red it swings hard right to go find it again, and as soon as it
+# sees red it almost straightens out. The net effect is the robot rides the
+# threshold between "see red" / "don't see red", which keeps the red group
+# pinned just off its right shoulder and causes the robot to orbit the
+# outside of the group -- i.e. it forms part of a "shell" around the group,
+# similar in spirit to milling but driven by a hunt/hold bang-bang rule
+# instead of a fixed two-state turn split.
+SHELL_SPEED = 80
+SHELL_TURN_SEEK = 0.9   # red not detected -> turn hard right to reacquire
+SHELL_TURN_HOLD = 0.15  # red detected -> nearly straight, hug the edge
+
 
 class TrackingState(StateMachine):
     search = State(initial=True)
@@ -151,6 +164,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         self.search_modes = {
             'idle': [(0, 0, 0), (0, 0, 0)],
             'mill': [(100, 90, -0.5), (100, 90, 0.5)],
+            'shell': [(SHELL_SPEED, 90, SHELL_TURN_SEEK), (SHELL_SPEED, 90, SHELL_TURN_HOLD)],
             'follow_leader': [(75, 90, 0), (75, 90, -0.5)],
             'disperse': [(100, 90, -2), (100, 90, 0)],
             'diffuse': [(50, 270, 0), (0, 270, 2)],
