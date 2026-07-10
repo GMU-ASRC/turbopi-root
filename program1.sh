@@ -1,2 +1,2 @@
 #!/bin/bash
-python /home/pi/milling_controller.py --startpaused
+python /home/pi/milling_controller.py --start_paused

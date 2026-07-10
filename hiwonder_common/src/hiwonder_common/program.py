@@ -118,7 +118,6 @@ range_rgb = {
 
 
 class Program:
-    name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
     UDP_LISTENER_CLASS = UDP_Listener
 
@@ -132,15 +131,12 @@ class Program:
 
         self.servo_data: dict[str, Any]
         self.load_servo_config(self.servo_cfg_path)
+        self.name = self.__class__.__name__ if name is None else name
 
         if disable_logging:
             self.p = self.detection_log = None
         else:
-            if name is None and self.name:
-                name = self.name
-            else:
-                name = self.__name__
-            self.p = project.make_default_project(args.project, args.root, suffix=name)
+            self.p = project.make_default_project(args.project, args.root, suffix=self.name)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
             self.detection_log.firstcall = self.log_detection_header
@@ -274,7 +270,7 @@ class Program:
 
     def set_rgb(self, color: Union[str, tuple, list]):
         # Set the RGB light color of the expansion board to match the color you want to track
-        # color can be a key in range_bgr OR an RGB tuple
+        # color can be a key in range_rgb OR an RGB tuple
         if isinstance(color, str) or color is None:
             if color not in range_rgb:
                 color = "black"

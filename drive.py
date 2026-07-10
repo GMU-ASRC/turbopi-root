@@ -8,7 +8,7 @@ import time
 import argparse
 import numpy as np
 
-from hiwonder_common.camera_binary_program import range_bgr
+from hiwonder_common.camera_binary_program import range_rgb
 import hiwonder_common.program as program
 
 
