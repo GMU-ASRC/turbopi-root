@@ -13,12 +13,12 @@ class GreenDispersalProgram(camera_binary_program.CameraBinaryProgram):
 
     def __init__(self, args):
         super().__init__(args)
-        self.target_colors = ['blue', 'green']
+        self.target_colors = ['green']
         self.color = ColorChange()
         self.color.change_color('green')
 
     def control(self):
-        if self.smoothed_detected['blue'] or self.smoothed_detected['green']:
+        if self.smoothed_detected['green']:
             self.move(100, 90, 2.0)
         else:
             self.move(100, 90, 0)

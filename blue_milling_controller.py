@@ -13,12 +13,12 @@ class BlueMillingProgram(camera_binary_program.CameraBinaryProgram):
 
     def __init__(self, args):
         super().__init__(args)
-        self.target_colors = ['blue']
+        self.target_colors = ['blue', 'green']
         self.color = ColorChange()
         self.color.change_color('blue')
-    
+
     def control(self):
-        if self.smoothed_detected['blue']:
+        if self.smoothed_detected['blue'] or self.smoothed_detected['green']:
             self.move(100, 90, -0.5)
         else:
             self.move(100, 90, 0.5)
