@@ -9,17 +9,17 @@ import hiwonder_common.camera_binary_program as camera_binary_program
 from hiwonder_common.color_change import ColorChange
 
 
-class GreenDispersalProgram(camera_binary_program.CameraBinaryProgram):
+class BlueDispersalProgram(camera_binary_program.CameraBinaryProgram):
 
     def __init__(self, args):
         super().__init__(args)
-        self.target_colors = ['green']
+        self.target_colors = ['blue', 'green']
         self.color = ColorChange()
-        self.color.change_color('green')
+        self.color.change_color('blue')
 
     def control(self):
-        if self.smoothed_detected['green']:
-            self.move(100, 90, 2.0)
+        if self.smoothed_detected['blue'] or self.smoothed_detected['green']:
+            self.move(100, 270, 2.0)
         else:
             self.move(100, 90, 0)
 
@@ -33,5 +33,5 @@ if __name__ == '__main__':
     get_parser(parser)
     args = parser.parse_args()
 
-    program = GreenDispersalProgram(args)
+    program = BlueDispersalProgram(args)
     camera_binary_program.main(args, program)
