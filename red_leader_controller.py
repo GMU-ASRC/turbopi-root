@@ -18,7 +18,7 @@ class RedLeaderProgram(camera_binary_program.CameraBinaryProgram):
         self.color.change_color('red')
 
     def control(self):
-        self.move(100, 90, 0.8)
+        self.move(100, 90, 0.4)
 
     
 def get_parser(parser, subparsers=None):
