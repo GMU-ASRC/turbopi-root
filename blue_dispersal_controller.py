@@ -19,7 +19,7 @@ class BlueDispersalProgram(camera_binary_program.CameraBinaryProgram):
 
     def control(self):
         if self.smoothed_detected['blue'] or self.smoothed_detected['green']:
-            self.move(0, 90, 1.0)
+            self.move(0, 90, 0.75)
         else:
             self.move(100, 90, 0)
 
