@@ -75,6 +75,8 @@ class CameraBinaryProgram(Program):
         self.detected = {color: False for color in self.target_colors} 
         self.smoothed_detected = {color: 0.0 for color in self.target_colors}
         self.averagers = {color: st.Average(10) for color in self.target_colors} # one averager per color
+        # minimum contour area (px^2, in preview_size coords) to count as a detection
+        self.detect_min_area = 300
         self.moves_this_frame = []
         self.history = []  # movement history
 
@@ -101,6 +103,10 @@ class CameraBinaryProgram(Program):
                 raise
         else:
             return True
+
+    def set_smoothing_window(self, n):
+        # rebuild the per-color moving-average filters with a new window length
+        self.averagers = {color: st.Average(n) for color in self.averagers}
 
     def load_lab_config(self, threshold_cfg_path):
         self.lab_data = self.get_yaml_data(threshold_cfg_path)
@@ -166,7 +172,7 @@ class CameraBinaryProgram(Program):
             contours = self.color_contour_detection(frame_clean, threshold, **contour_args)
             biggest, area = contours[0] if contours else (None, 0)
             contours_by_color[color] = (biggest, area)
-            self.detected[color] = area > 300
+            self.detected[color] = area > self.detect_min_area
             self.smoothed_detected[color] = self.averagers[color](self.detected[color])
 
         self.control_wrapper()  # ################################
