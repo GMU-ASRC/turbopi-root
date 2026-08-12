@@ -30,10 +30,10 @@ class BlueDispersalProgram(camera_binary_program.CameraBinaryProgram):
         self.color.change_color('blue')
 
     def control(self):
-        if self.smoothed_detected['blue'] or self.smoothed_detected['green']:
-            self.move(0, 90, 0.75)
+        if self.smoothed_detected['green']:
+            self.move(100, 180, 0)
         else:
-            self.move(100, 90, 0)
+            self.move(0, 90, 0.75)
 
 
 def get_parser(parser, subparsers=None):
