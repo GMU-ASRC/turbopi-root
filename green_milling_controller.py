@@ -20,6 +20,8 @@ class GreenMillingProgram(camera_binary_program.CameraBinaryProgram):
     def control(self):
         if self.smoothed_detected['green']:
             self.move(100, 90, -0.5)
+        elif self.smoothed_detected['blue']:
+            self.move(100, 0, -0.5)
         else:
             self.move(100, 90, 0.5)
 
