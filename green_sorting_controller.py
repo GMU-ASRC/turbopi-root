@@ -3,32 +3,51 @@
 
 # pyright: reportImplicitOverride=false
 
+import random
 import argparse
 
 import hiwonder_common.camera_binary_program as camera_binary_program
 from hiwonder_common.color_change import ColorChange
 
 
+INITIAL_SPIRAL_TURN_RATE = 0.7
+
+
 class GreenSortingProgram(camera_binary_program.CameraBinaryProgram):
 
-    # Tuned from TurboPi_Sensing_Characterization.xlsx: the fleet detects a ball
-    # out to 1.06 m at the default 300 px^2. Apparent area falls off as 1/d^2, so
-    # threshold = 300 * (1.06 / range)^2; 1350 puts the trigger near 0.5 m. In a
-    # 4.3 x 3.7 m arena the default range spans most of the floor, so every robot
-    # would see a blue almost always and the repel branch would never release.
-    DETECT_MIN_AREA = 1350
-    # The default 10-frame filter needs 5 clear frames to release, by which point
-    # a turning robot has swept past the gap it was looking for. 3 still rejects
-    # single-frame dropouts but releases in 2.
-    SMOOTHING_WINDOW = 3
+    # Framework default. The species markers are ping pong balls, and the 1.06 m
+    # detection range in TurboPi_Sensing_Characterization.xlsx was measured on a
+    # ball, so it transfers directly. Apparent area falls off as 1/d^2, so
+    # threshold = 300 * (1.06 / range)^2. 1350 put the trigger near 0.5 m, which
+    # in the 4.3 x 3.7 m arena left the robots effectively blind to each other:
+    # all six drove straight into the walls without ever turning.
+    DETECT_MIN_AREA = 300
+    # Framework default. A 3-frame window was chosen to release quickly while
+    # turning away from a crowd. At this arena size and fleet count sightings are
+    # sparse and brief, so the risk is missing one, not latching on a stale one;
+    # the 10-frame window's noise rejection is worth the extra release lag.
+    SMOOTHING_WINDOW = 10
 
     def __init__(self, args):
         super().__init__(args)
         self.target_colors = ['blue', 'green']
         self.detect_min_area = self.DETECT_MIN_AREA
         self.set_smoothing_window(self.SMOOTHING_WINDOW)
+        # Spiral search state, ported from non_chasing_controller.spiral1. The
+        # source rolls turn_orientation with randint(-1, 1), which can return 0
+        # and pin the spiral to a straight line; choice((-1, 1)) keeps it turning.
+        self.turn_orientation = random.choice((-1, 1))
+        self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
         self.color = ColorChange()
         self.color.change_color('green')
+
+    def spiral_search(self):
+        # Widening arc: the turn rate decays until it resets, so the robot covers
+        # ground instead of closing a fixed circle, but still curves off walls.
+        self.move(60, 90, self.spiral_turn_rate * self.turn_orientation)
+        self.spiral_turn_rate -= 0.001
+        if self.spiral_turn_rate < 0.35:
+            self.spiral_turn_rate = INITIAL_SPIRAL_TURN_RATE
 
     def control(self):
         if self.smoothed_detected['blue']:
@@ -36,7 +55,7 @@ class GreenSortingProgram(camera_binary_program.CameraBinaryProgram):
         elif self.smoothed_detected['green']:
             self.move(60, 90, -0.5)
         else:
-            self.move(60, 90, 0)
+            self.spiral_search()
 
 
 def get_parser(parser, subparsers=None):
