@@ -4,6 +4,7 @@
 # pyright: reportImplicitOverride=false
 
 import argparse
+import random
 
 import hiwonder_common.camera_binary_program as camera_binary_program
 from hiwonder_common.color_change import ColorChange
@@ -16,9 +17,21 @@ class RedLeaderProgram(camera_binary_program.CameraBinaryProgram):
         self.target_colors = ['red']
         self.color = ColorChange()
         self.color.change_color('red')
+        self.walk_timer = 0
+        self.turn_timer = 0
+        self.current_turn = 0.5
 
     def control(self):
-        self.move(100, 90, 0.5) 
+        if self.walk_timer > 0:
+            self.move(100, 90, 0)
+            self.walk_timer -= 1
+        elif self.turn_timer > 0:
+            self.move(60, 90, self.current_turn)
+            self.turn_timer -= 1
+        else:
+            self.walk_timer = random.randint(30, 80)
+            self.turn_timer = random.randint(20, 50)
+            self.current_turn = random.choice([-0.8, -0.5, 0.5, 0.8])
 
     
 def get_parser(parser, subparsers=None):
