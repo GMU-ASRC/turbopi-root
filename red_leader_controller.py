@@ -3,8 +3,12 @@
 
 # pyright: reportImplicitOverride=false
 
-import argparse
+import sys
 import random
+import argparse
+
+sys.path.append('/home/pi/TurboPi/')
+import HiwonderSDK.Sonar as Sonar
 
 import hiwonder_common.camera_binary_program as camera_binary_program
 from hiwonder_common.color_change import ColorChange
