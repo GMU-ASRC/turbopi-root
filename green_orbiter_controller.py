@@ -21,7 +21,7 @@ class GreenOrbiterProgram(camera_binary_program.CameraBinaryProgram):
         if self.smoothed_detected['red']:
             self.move(100, 90, -0.5)
         else:
-            self.move(100, 90, 0.3)
+            self.move(100, 90, 0.5)
 
 
 def get_parser(parser, subparsers=None):
