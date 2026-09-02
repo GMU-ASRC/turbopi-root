@@ -14,20 +14,27 @@ import hiwonder_common.camera_binary_program as camera_binary_program
 
 
 class MillingProgram(camera_binary_program.CameraBinaryProgram):
+    dict_names = camera_binary_program.dict_names | {'record'}
+
+    def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
+        super().__init__(args, post_init=post_init, board=board, name=name, disable_logging=disable_logging)
+        self.record = getattr(args, 'record', False)
 
     def main(self):
-        self.writer = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (640, 480))
+        if self.record:
+            self.writer = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (640, 480))
         super().main()
 
     def main_loop(self):
         super().main_loop()
-        raw_img = self.camera.frame
-        if raw_img is not None:
-            frame = cv2.resize(raw_img, self.preview_size)
-            self.writer.write(frame)
+        if self.record:
+            raw_img = self.camera.frame
+            if raw_img is not None:
+                frame = cv2.resize(raw_img, self.preview_size)
+                self.writer.write(frame)
 
     def stop(self, exit=True, silent=False):
-        if getattr(self, 'writer', None):
+        if self.record and getattr(self, 'writer', None):
             self.writer.release()
         super().stop(exit, silent)
 
@@ -40,6 +47,7 @@ class MillingProgram(camera_binary_program.CameraBinaryProgram):
 
 
 def get_parser(parser, subparsers=None):
+    parser.add_argument('--record', action='store_true', help="Record camera feed to output.mp4 (default: off)")
     return camera_binary_program.get_parser(parser, subparsers)
 
 
