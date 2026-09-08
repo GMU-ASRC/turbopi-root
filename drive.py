@@ -22,6 +22,12 @@ class ConstantSpeedProgram(program.Program):
             self.startup_beep()
 
     def control(self):
+        if (
+            self.first_frame_time is not None
+            and self.first_frame_time + self.args.time < time.time()
+        ):
+            self.stop()
+
         self.set_rgb('blue')
         self.move(*self.outputs)
 
@@ -36,6 +42,7 @@ def get_parser(parser: argparse.ArgumentParser, subparsers=None):
     parser.add_argument("-v", "--forward_velocity", type=float, default=0)
     parser.add_argument("-d", "--direction_vector", type=float, default=90)
     parser.add_argument("-w", "--turning_rate", type=float, default=0)
+    parser.add_argument("-t", "--time", type=float, default=None)
     parser.add_argument("--enable_logging", action="store_true")
     return parser, subparsers
 

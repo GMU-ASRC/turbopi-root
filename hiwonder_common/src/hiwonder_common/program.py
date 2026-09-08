@@ -122,6 +122,7 @@ class Program:
     UDP_LISTENER_CLASS = UDP_Listener
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
+        self.args = args
         self._run = not args.start_paused
         self._stop_soon = False
 
@@ -330,16 +331,17 @@ class Program:
         self.init_move()
 
         def loop():
-            t_start = time.time_ns()
+            self.frame_start_ns = time.time_ns()
             self.main_loop()
-            frame_ns = time.time_ns() - t_start
-            frame_time = frame_ns / (10 ** 9)
-            self.fps = 1 / frame_time
+            frame_ns = time.time_ns() - self.frame_start_ns
+            self.last_frame_time = frame_ns / (10 ** 9)
+            self.fps = 1 / self.last_frame_time
             # print(self.fps)
 
         if self.p:
             self.save_artifacts()
 
+        self.first_frame_time = time.time()
         errors = 0
         while 1:
             try:
