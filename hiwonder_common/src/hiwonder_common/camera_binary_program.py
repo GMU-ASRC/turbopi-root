@@ -143,7 +143,7 @@ class CameraBinaryProgram(Program):
         if not filename:
             hostname = socket.gethostname()
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'/home/pi/TurboPi/screenshots/{hostname}_{timestamp}.png'
+            filename = f'/home/pi/TurboPi/Pictures/{hostname}_{timestamp}.png'
         elif filename.startswith('http://') or filename.startswith('https://'):
             import requests
             requests.get(filename, stream=True).raw.decode_content = True
@@ -153,6 +153,7 @@ class CameraBinaryProgram(Program):
                         f.write(chunk)
             return
         cv2.imwrite(filename, self.annotated_image)
+        print(f"Saved screenshot to {filename}")
 
     def main_loop(self):
         self.moves_this_frame = []
