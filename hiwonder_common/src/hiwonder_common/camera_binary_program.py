@@ -219,7 +219,8 @@ class CameraBinaryProgram(Program):
         self.camera = Camera.Camera()
         self.camera.camera_open(correction=True)  # Enable distortion correction, not enabled by default
         if self.record:
-            self.writer = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (640, 480))
+            self.writer = cv2.VideoWriter(self.record, cv2.VideoWriter_fourcc(*'mp4v'),
+                                          30, self.preview_size)
         super().main()
 
     @staticmethod
@@ -274,7 +275,8 @@ class CameraBinaryProgram(Program):
 
 
 def get_parser(parser, subparsers=None):
-    parser.add_argument('--record', action='store_true', help="Record camera feed to output.mp4 (default: off)")
+    parser.add_argument('--record', nargs='?', const='output.mp4', default=None,
+                        help="Record camera feed to output.mp4 or a specified filename (default: None)")
     return hiwonder_common.program.get_parser(parser, subparsers)
 
 
