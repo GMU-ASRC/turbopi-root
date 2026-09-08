@@ -17,6 +17,10 @@ echo 'Removing symlink /etc/systemd/system/buttonman.service'
 systemctl stop buttonman.service
 systemctl disable buttonman.service
 rm /etc/systemd/system/buttonman.service
+echo 'Removing symlink /etc/systemd/system/batterywatcher.service'
+systemctl stop batterywatcher.service
+systemctl disable batterywatcher.service
+rm /etc/systemd/system/batterywatcher.service
 echo 'Enabling hw_button_scan.service'
 systemctl enable hw_button_scan.service
 systemctl start hw_button_scan.service

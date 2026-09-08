@@ -1,0 +1,15 @@
+[Unit]
+Description=battery watchdog
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/python3 /home/pi/boot/battchk.py --watch
+ExecStop=/bin/systemctl kill batterywatcher
+
+[Install]
+WantedBy=multi-user.target
+
+
+

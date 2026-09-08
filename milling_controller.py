@@ -19,7 +19,7 @@ import HiwonderSDK.Sonar as Sonar
 
 import hiwonder_common.program
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.camera_binary_program import range_bgr
+from hiwonder_common.camera_binary_program import range_rgb
 import hiwonder_common.camera_binary_program as camera_binary_program
 
 SPECIAL_FUNCTION = "__function__"
