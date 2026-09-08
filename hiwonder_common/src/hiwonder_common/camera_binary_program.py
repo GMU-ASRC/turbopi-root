@@ -138,7 +138,7 @@ class CameraBinaryProgram(Program):
         self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
     def screenshot(self, filename: str):
-        if not self.annotated_image or not self.masks:
+        if self.annotated_image is None or not self.masks:
             return
         if not filename:
             hostname = socket.gethostname()
