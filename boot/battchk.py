@@ -40,7 +40,7 @@ KEY2_PIN = 16
 KDN = GPIO.LOW
 KUP = GPIO.HIGH
 
-BAD_CELL_VOLTAGE = 3.1
+BAD_CELL_VOLTAGE = 3.45
 
 n = 10
 __stop = False
@@ -246,7 +246,7 @@ def _watch():
             buttonman.stop_board()
             main()
             time.sleep(120)
-    time.sleep(60)
+    time.sleep(10)
 
 
 def watch():
