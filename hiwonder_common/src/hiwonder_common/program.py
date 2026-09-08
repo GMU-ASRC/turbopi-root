@@ -53,6 +53,8 @@ MAGIC = b'pi__F00#VML'
 
 
 class UDP_Listener:
+    dispatch_table = {}
+
     def __init__(self, program):
         self._run = True
         self.app = program
@@ -81,6 +83,55 @@ class UDP_Listener:
             self.app.resume()
         elif b'pause' in cmd:
             self.app.pause()
+        else:
+            try:
+                cmd = cmd.decode('utf-8')
+            except UnicodeDecodeError:
+                return
+            for cmdprefix, funcname in self.dispatch_table.items():
+                if ((trunc := self.checkprefix(cmd, cmdprefix)) is not None
+                        and hasattr(self.app, funcname)):
+                    getattr(self.app, funcname)(trunc)
+                    break
+
+    @staticmethod
+    def checkprefix(cmd, prefix: str):
+        """Check if a command starts with a prefix and remove it if it does.
+
+        The command prefix may optionally be followed by a colon.
+
+        Parameters
+        ----------
+        cmd : bytes | str
+        prefix : str
+
+        Returns
+        -------
+        NoneType
+            if no match was found
+        str
+            a string with the prefix removed. may be empty.
+
+        Examples
+        --------
+        >>> checkprefix(b'screenshot', 'screenshot')
+        ''
+        >>> checkprefix(b'mode: idle', 'mode')
+        'idle'
+        >>> checkprefix(b'mode switch', 'mode')
+        'switch'
+        >>> repr(checkprefix(b'modeswitch', 'mode'))
+        None
+        """
+        if cmd.startswith(prefix):
+            trunc = cmd.removeprefix(prefix)
+            if trunc.startswith(':'):
+                return trunc.lstrip(':').strip()
+            elif not trunc.strip():  # empty string
+                return ''
+            elif trunc[0].isspace():
+                return trunc.strip()
+        return None  # no match
 
     def loop(self):
         while self._run:

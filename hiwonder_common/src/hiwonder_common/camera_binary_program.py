@@ -7,13 +7,15 @@
 import sys
 import time
 import math
+import socket
 import operator
 import argparse
+import datetime
 import numpy as np
 import cv2
 
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.program import Program, main, range_rgb
+from hiwonder_common.program import Program, main, range_rgb, UDP_Listener
 import hiwonder_common.program  # modifies PATH
 
 # import after path modification
@@ -29,6 +31,8 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
 dict_names = Program.dict_names
 dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager', 'record'}  # noqa: E501
+
+UDP_Listener.dispatch_table['screenshot'] = 'screenshot'
 
 
 def rgb2bgr(rgb):
@@ -70,6 +74,9 @@ class CameraBinaryProgram(Program):
         self.boolean_detection_averager = st.Average(10)
         self.moves_this_frame = []
         self.history = []  # movement history
+
+        self.annotated_image = None
+        self.masks = {}
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -130,6 +137,23 @@ class CameraBinaryProgram(Program):
         n = self.boolean_detection_averager.n
         self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
+    def screenshot(self, filename: str):
+        if not self.annotated_image or not self.masks:
+            return
+        if not filename:
+            hostname = socket.gethostname()
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'/home/pi/TurboPi/screenshots/{hostname}_{timestamp}.png'
+        elif filename.startswith('http://') or filename.startswith('https://'):
+            import requests
+            requests.get(filename, stream=True).raw.decode_content = True
+            with open(filename.split('/')[-1], 'wb') as f:
+                for chunk in requests.get(filename, stream=True).iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            return
+        cv2.imwrite(filename, self.annotated_image)
+
     def main_loop(self):
         self.moves_this_frame = []
         avg_fps = self.fps_averager(self.fps)  # feed the averager
@@ -145,7 +169,7 @@ class CameraBinaryProgram(Program):
         frame_clean = cv2.cvtColor(frame_clean, cv2.COLOR_BGR2LAB)  # convert to LAB space
 
         # prep a copy to be annotated
-        annotated_image = raw_img.copy()
+        self.annotated_image = annotated_image = raw_img.copy()
 
         # If we're calling target_contours() multiple times, some args will
         # be the same. Let's put them here to re-use them.
@@ -156,10 +180,12 @@ class CameraBinaryProgram(Program):
         # extract the LAB threshold
         threshold = (tuple(self.lab_data[self.target_color][key]) for key in ['min', 'max'])
         # breakpoint()
+        self.masks.setdefault(self.target_color, {})
         # run contour detection
         target_contours = self.color_contour_detection(
             frame_clean,
             tuple(threshold),  # type: ignore
+            save_to_dict=self.masks[self.target_color],
             **contour_args
         )
         # The output of color_contour_detection() is sorted highest to lowest
@@ -202,11 +228,15 @@ class CameraBinaryProgram(Program):
         threshold: tuple[tuple[int, int, int], tuple[int, int, int]],
         open_kernel: np.array = None,
         close_kernel: np.array = None,
+        save_to_dict=None,
     ):
+        if save_to_dict is None:
+            save_to_dict = {}
         # Image Processing
         # mask the colors we want
         threshold = [tuple(li) for li in threshold]  # cast to tuple to make cv2 happy
         frame_mask = cv2.inRange(frame, *threshold)  # type: ignore
+        save_to_dict['mask'] = frame_mask
         # Perform an opening and closing operation on the mask
         # https://youtu.be/1owu136z1zI?feature=shared&t=34
         frame = frame_mask.copy()
@@ -216,6 +246,7 @@ class CameraBinaryProgram(Program):
             frame = cv2.morphologyEx(frame, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
         # find contours (blobs) in the mask
         contours = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
+        save_to_dict['contours'] = contours
         areas = [math.fabs(cv2.contourArea(contour)) for contour in contours]
         # zip to provide pairs of (contour, area)
         zipped = zip(contours, areas)
