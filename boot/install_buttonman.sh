@@ -27,7 +27,6 @@ echo
 echo 'Installing Dependencies'
 echo
 pip install psutil python-statemachine
-
 ln -sf /home/pi/boot/buttonman.service /etc/systemd/system/buttonman.service
 echo
 echo 'buttonman service was linked to /etc/systemd/system/buttonman.service'
@@ -38,6 +37,13 @@ systemctl disable hw_button_scan.service
 systemctl stop hw_button_scan.service
 systemctl enable buttonman.service
 systemctl start buttonman.service
+
+echo
+echo 'Enabling batterywatcher.service (battchk.py --watch)'
+echo
+ln -sf /home/pi/boot/batterywatcher.service /etc/systemd/system/batterywatcher.service
+systemctl enable batterywatcher.service
+systemctl start batterywatcher.service
 
 echo
 echo 'Removing old hw_find service'
