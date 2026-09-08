@@ -20,6 +20,8 @@
 # logging folder
 /logs/
 
+*.mp4
+
 # -------------------------------------------------------------------
 # python stuff
 # Byte-compiled / optimized / DLL files
