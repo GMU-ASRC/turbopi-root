@@ -40,7 +40,7 @@ KEY2_PIN = 16
 KDN = GPIO.LOW
 KUP = GPIO.HIGH
 
-BAD_CELL_VOLTAGE = 2.9
+BAD_CELL_VOLTAGE = 3.1
 
 n = 10
 __stop = False
@@ -172,7 +172,7 @@ def beepn(n, color):
 
 
 def measure_voltage(n: int = 1):
-    measurements = [voltage_detection() for _ in range(5)]
+    measurements = [voltage_detection() for _ in range(n)]
     measurements = [x for x in measurements if x is not None]
     if not measurements:
         return None, None
@@ -231,20 +231,31 @@ def main():
         time.sleep(spin_period)  # trap if waiting for buttons to be unpressed...
 
 
+def _watch():
+    cell, _ = measure_voltage(2)
+    if cell and cell < BAD_CELL_VOLTAGE:
+        measurements = []
+        for _ in range(20):
+            total = voltage_detection()
+            if total is not None:
+                measurements.append(total / 2)
+            time.sleep(0.49)
+        if measurements and max(measurements) < BAD_CELL_VOLTAGE:
+            print("Battery voltage is low. Stopping all registered processes.")
+            buttonman.TaskManager().close_all_registered()
+            buttonman.stop_board()
+            main()
+            time.sleep(120)
+    time.sleep(60)
+
+
 def watch():
-    global n
     # for constantly checking the voltage
     while not __stop:
-        _cell, measurements = measure_voltage(10)
-        if measurements and max(measurements) < BAD_CELL_VOLTAGE:
-            try:
-                print("Battery voltage is low. Stopping all registered processes.")
-                buttonman.TaskManager().close_all_registered()
-                buttonman.stop_board()
-            except Exception as err:
-                print(err)
-            main()
-            time.sleep(60)
+        try:
+            _watch()
+        except Exception as err:
+            print(err)
 
 
 def btn_check():
