@@ -33,6 +33,7 @@ dict_names = Program.dict_names
 dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager', 'record'}  # noqa: E501
 
 UDP_Listener.dispatch_table['screenshot'] = 'screenshot'
+UDP_Listener.dispatch_table['maskshot'] = 'maskshot'
 
 
 def rgb2bgr(rgb):
@@ -137,13 +138,17 @@ class CameraBinaryProgram(Program):
         n = self.boolean_detection_averager.n
         self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
-    def screenshot(self, filename: str):
-        if self.annotated_image is None or not self.masks:
+    def screenshot(self, filename: str, image=None, suffix='annotated'):
+        if image is None:
+            image = self.annotated_image
+        if image is None:
             return
         if not filename:
             hostname = socket.gethostname()
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f'/home/pi/TurboPi/Pictures/{hostname}_{timestamp}.png'
+            if suffix:
+                suffix = f'_{suffix}'
+            filename = f'/home/pi/Pictures/{hostname}_{timestamp}{suffix}.png'
         elif filename.startswith('http://') or filename.startswith('https://'):
             import requests
             requests.get(filename, stream=True).raw.decode_content = True
@@ -152,8 +157,14 @@ class CameraBinaryProgram(Program):
                     if chunk:
                         f.write(chunk)
             return
-        cv2.imwrite(filename, self.annotated_image)
+        cv2.imwrite(filename, image)
         print(f"Saved screenshot to {filename}")
+
+    def maskshot(self, color: str):
+        if color not in self.masks:
+            return
+        mask = self.masks[color]['mask']
+        self.screenshot('', mask, suffix=color)
 
     def main_loop(self):
         self.moves_this_frame = []
