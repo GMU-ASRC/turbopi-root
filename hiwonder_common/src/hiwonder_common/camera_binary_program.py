@@ -28,7 +28,7 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
 
 dict_names = Program.dict_names
-dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager'}  # noqa: E501
+dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager', 'record'}  # noqa: E501
 
 
 def rgb2bgr(rgb):
@@ -54,6 +54,7 @@ class CameraBinaryProgram(Program):
         self.target_color = ('green')
 
         self.camera: Camera.Camera | None = None
+        self.record = args.record
 
         self.lab_cfg_path = getattr(args, 'lab_cfg_path', THRESHOLD_CFG_PATH)
         self.servo_cfg_path = getattr(args, 'servo_cfg_path', SERVO_CFG_PATH)
@@ -98,6 +99,8 @@ class CameraBinaryProgram(Program):
         self.lab_data = self.get_yaml_data(threshold_cfg_path)
 
     def stop(self, exit=True, silent=False):
+        if self.record:
+            self.writer.release()
         if self.camera:
             self.camera.camera_close()
         self.set_rgb('None')
@@ -174,6 +177,9 @@ class CameraBinaryProgram(Program):
         else:
             self.draw_text(annotated_image, range_bgr['black'], 'None')
         self.draw_fps(annotated_image, range_bgr['black'], avg_fps)
+        if self.record:
+            frame = cv2.resize(annotated_image, self.preview_size)
+            self.writer.write(frame)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
             cv2.imshow('frame', frame_resize)
@@ -186,6 +192,8 @@ class CameraBinaryProgram(Program):
     def main(self):
         self.camera = Camera.Camera()
         self.camera.camera_open(correction=True)  # Enable distortion correction, not enabled by default
+        if self.record:
+            self.writer = cv2.VideoWriter('output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (640, 480))
         super().main()
 
     @staticmethod
@@ -235,6 +243,7 @@ class CameraBinaryProgram(Program):
 
 
 def get_parser(parser, subparsers=None):
+    parser.add_argument('--record', action='store_true', help="Record camera feed to output.mp4 (default: off)")
     return hiwonder_common.program.get_parser(parser, subparsers)
 
 
