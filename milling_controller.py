@@ -17,7 +17,7 @@ from statemachine import StateMachine, State
 sys.path.append('/home/pi/TurboPi/')
 import HiwonderSDK.Sonar as Sonar
 
-import hiwonder_common.program
+import hiwonder_common.program as program
 import hiwonder_common.statistics_tools as st
 from hiwonder_common.camera_binary_program import range_rgb
 import hiwonder_common.camera_binary_program as camera_binary_program
@@ -37,8 +37,6 @@ dict_names |= {
 
 
 INITIAL_SPIRAL_TURN_RATE = 0.7
-
-
 
 
 class TrackingState(StateMachine):
@@ -100,31 +98,10 @@ class TrackingState(StateMachine):
         self.t_foe_lost = time.time()
 
 
-class UDP_Listener(hiwonder_common.program.UDP_Listener):
-    def act(self, data, addr):
-        split = data.split(b"cmd:\n", 1)
-        try:
-            cmd = split[1]
-        except IndexError:
-            return
-
-        if b"halt" in cmd or b"stop" in cmd:
-            self._run = False
-            self.app._run = False
-            self.app._stop_soon = True
-            return
-        if b"unpause" in cmd or b"resume" in cmd:
-            self.app.resume()
-        elif b"pause" in cmd:
-            self.app.pause()
-        elif b"switch" in cmd:
-            program.mode = cmd.strip().removeprefix(b"switch ").decode().strip()
-        elif b"random" in cmd:
-            program.random_walk = not program.random_walk
+program.UDP_Listener.dispatch_table['switch'] = 'switch'
 
 
 class SandmanProgram(camera_binary_program.CameraBinaryProgram):
-    UDP_LISTENER_CLASS = UDP_Listener
     name = "SandmanProgram"
     dict_names = dict_names
 
@@ -179,6 +156,9 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
             print(f"invalid mode: {mode}")
         else:
             self._mode = mode
+
+    def switch(self, mode: str):
+        self.mode = mode
 
     def control_wrapper(self):
         self.control()
@@ -246,6 +226,7 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
     def search(self):
         self.current_state_name = "Search"
+
         def move_or_call(move_or_function):
             if callable(move_or_function):
                 move_or_function()
@@ -290,21 +271,26 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
         frame_clean = cv2.cvtColor(frame_clean, cv2.COLOR_BGR2LAB)  # convert to LAB space
 
         # prep a copy to be annotated
-        annotated_image = raw_img.copy()
+        self.annotated_image = annotated_image = raw_img.copy()
 
         # If we're calling target_contours() multiple times, some args will
         # be the same. Let's put them here to re-use them.
-        contour_args = {
+        ccdargs = {
             "open_kernel": np.ones((3, 3), np.uint8),
             "close_kernel": np.ones((3, 3), np.uint8),
         }
         # extract the LAB threshold
         frn_threshold = (tuple(self.lab_data[self.frn_detect_color][key]) for key in ["min", "max"])
         foe_threshold = (tuple(self.lab_data[self.foe_detect_color][key]) for key in ["min", "max"])
+        self.masks.setdefault(self.frn_detect_color, {})
+        self.masks.setdefault(self.foe_detect_color, {})
 
         # run contour detection
-        frn_contours = self.color_contour_detection(frame_clean, tuple(frn_threshold), **contour_args)
-        foe_contours = self.color_contour_detection(frame_clean, tuple(foe_threshold), **contour_args)
+        ccd = self.color_contour_detection
+        frn_contours = ccd(frame_clean, tuple(frn_threshold),
+                           save_to_dict=self.masks[self.frn_detect_color], **ccdargs)
+        foe_contours = ccd(frame_clean, tuple(foe_threshold),
+                           save_to_dict=self.masks[self.foe_detect_color], **ccdargs)
         # The output of color_contour_detection() is sorted highest to lowest
         frn_biggest_contour, frn_biggest_contour_area = frn_contours[0] if frn_contours else (None, 0)
         foe_biggest_contour, foe_biggest_contour_area = foe_contours[0] if foe_contours else (None, 0)
@@ -332,19 +318,22 @@ class SandmanProgram(camera_binary_program.CameraBinaryProgram):
 
         # draw annotations of detected contours
         if self.foe_detected:
-            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
-            self.draw_text(annotated_image, range_bgr[self.foe_detect_color], self.foe_detect_color)
+            self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_rgb[self.foe_detect_color])
+            self.draw_text(annotated_image, range_rgb[self.foe_detect_color], self.foe_detect_color)
         elif self.frn_detected:
-            self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_bgr[self.frn_detect_color])
-            self.draw_text(annotated_image, range_bgr[self.frn_detect_color], self.frn_detect_color)
+            self.draw_fitted_rect(annotated_image, frn_biggest_contour, range_rgb[self.frn_detect_color])
+            self.draw_text(annotated_image, range_rgb[self.frn_detect_color], self.frn_detect_color)
         else:
-            self.draw_text(annotated_image, range_bgr["black"], "None")
+            self.draw_text(annotated_image, range_rgb["black"], "None")
 
         # if foe_biggest_contour_area > 100:
         #     self.draw_fitted_rect(annotated_image, foe_biggest_contour, range_bgr[self.foe_detect_color])
-        self.draw_text_right(annotated_image, range_bgr["black"], self.current_state_name)
+        self.draw_text_right(annotated_image, range_rgb["black"], self.current_state_name)
 
-        self.draw_fps(annotated_image, range_bgr["black"], avg_fps)
+        self.draw_fps(annotated_image, range_rgb["black"], avg_fps)
+        if self.record:
+            frame = cv2.resize(annotated_image, self.preview_size)
+            self.writer.write(frame)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
             cv2.imshow("frame", frame_resize)
