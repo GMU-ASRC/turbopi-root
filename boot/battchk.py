@@ -17,7 +17,6 @@ import HiwonderSDK.Sonar as Sonar
 import warnings
 try:
     import buttonman as buttonman
-    buttonman.TaskManager.register_stoppable()
 except ImportError:
     buttonman = None
     warnings.warn("buttonman was not imported, so no processes can be registered. This means the process can't be stopped by buttonman.",  # noqa: E501
@@ -28,6 +27,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 #######
 
+key1_debouncer = None
+key2_debouncer = None
+
 environ_silent = os.environ.get('silent', None)
 do_beeps = environ_silent is None or environ_silent.lower() == 'false'
 do_flash = True
@@ -37,6 +39,8 @@ KEY1_PIN = 33
 KEY2_PIN = 16
 KDN = GPIO.LOW
 KUP = GPIO.HIGH
+
+BAD_CELL_VOLTAGE = 3.45
 
 n = 10
 __stop = False
@@ -168,7 +172,7 @@ def beepn(n, color):
 
 
 def measure_voltage(n: int = 1):
-    measurements = [voltage_detection() for _ in range(5)]
+    measurements = [voltage_detection() for _ in range(n)]
     measurements = [x for x in measurements if x is not None]
     if not measurements:
         return None, None
@@ -227,6 +231,33 @@ def main():
         time.sleep(spin_period)  # trap if waiting for buttons to be unpressed...
 
 
+def _watch():
+    cell, _ = measure_voltage(2)
+    if cell and cell < BAD_CELL_VOLTAGE:
+        measurements = []
+        for _ in range(20):
+            total = voltage_detection()
+            if total is not None:
+                measurements.append(total / 2)
+            time.sleep(0.49)
+        if measurements and max(measurements) < BAD_CELL_VOLTAGE:
+            print("Battery voltage is low. Stopping all registered processes.")
+            buttonman.TaskManager().close_all_registered()
+            buttonman.stop_board()
+            main()
+            time.sleep(120)
+    time.sleep(10)
+
+
+def watch():
+    # for constantly checking the voltage
+    while not __stop:
+        try:
+            _watch()
+        except Exception as err:
+            print(err)
+
+
 def btn_check():
     global button_states
     button_states = [GPIO.input(KEY1_PIN), GPIO.input(KEY2_PIN)]
@@ -249,14 +280,32 @@ def btn_handler(channel, state):
         sys.exit()  # exit the python script immediately
 
 
+def setup_buttons():
+    global key1_debouncer, key2_debouncer
+    print("Adding listeners to stop battchk.py")
+    GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    key1_debouncer = buttonman.ButtonDebouncer(KEY1_PIN, btn_handler, bouncetime=30)
+    key2_debouncer = buttonman.ButtonDebouncer(KEY2_PIN, btn_handler, bouncetime=30)
+    key1_debouncer.start()
+    key2_debouncer.start()
+    GPIO.add_event_detect(KEY1_PIN, GPIO.BOTH, callback=key1_debouncer)
+    GPIO.add_event_detect(KEY2_PIN, GPIO.BOTH, callback=key2_debouncer)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--__listen_button_exit', action='store_true')
     parser.add_argument('--silent', action='store_true')
     parser.add_argument('--quiet', action='store_true')
     parser.add_argument('-s', '--stealth', action='store_true')
+    parser.add_argument('--watch', action='store_true')
     parser.add_argument('-n', type=int, default=None)
     args = parser.parse_args()
+
+    if not args.watch:
+        buttonman.TaskManager.register_stoppable()
 
     if args.silent or args.quiet:
         do_beeps = False
@@ -272,18 +321,12 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, lambda s, h: stop())
 
-    button_listen = args.__listen_button_exit
-    if button_listen and buttonman:
-        print("Adding listeners to stop battchk.py")
-        GPIO.setup(KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        key1_debouncer = buttonman.ButtonDebouncer(KEY1_PIN, btn_handler, bouncetime=30)
-        key2_debouncer = buttonman.ButtonDebouncer(KEY2_PIN, btn_handler, bouncetime=30)
-        key1_debouncer.start()
-        key2_debouncer.start()
-        GPIO.add_event_detect(KEY1_PIN, GPIO.BOTH, callback=key1_debouncer)
-        GPIO.add_event_detect(KEY2_PIN, GPIO.BOTH, callback=key2_debouncer)
-    elif button_listen:
-        raise ImportError("Requested to run in button stop mode, but buttonman module couldn't be imported! Exiting...")
-    main()
+    if args.watch:
+        watch()
+    else:
+        button_listen = args.__listen_button_exit
+        if button_listen and buttonman:
+            setup_buttons()
+        elif button_listen:
+            raise ImportError("Requested to run in button stop mode, but buttonman module couldn't be imported! Exiting...")
+        main()

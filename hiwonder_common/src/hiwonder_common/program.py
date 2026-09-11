@@ -53,6 +53,8 @@ MAGIC = b'pi__F00#VML'
 
 
 class UDP_Listener:
+    dispatch_table = {}
+
     def __init__(self, program):
         self._run = True
         self.app = program
@@ -81,6 +83,55 @@ class UDP_Listener:
             self.app.resume()
         elif b'pause' in cmd:
             self.app.pause()
+        else:
+            try:
+                cmd = cmd.decode('utf-8')
+            except UnicodeDecodeError:
+                return
+            for cmdprefix, funcname in self.dispatch_table.items():
+                if ((trunc := self.checkprefix(cmd, cmdprefix)) is not None
+                        and hasattr(self.app, funcname)):
+                    getattr(self.app, funcname)(trunc)
+                    break
+
+    @staticmethod
+    def checkprefix(cmd, prefix: str):
+        """Check if a command starts with a prefix and remove it if it does.
+
+        The command prefix may optionally be followed by a colon.
+
+        Parameters
+        ----------
+        cmd : bytes | str
+        prefix : str
+
+        Returns
+        -------
+        NoneType
+            if no match was found
+        str
+            a string with the prefix removed. may be empty.
+
+        Examples
+        --------
+        >>> checkprefix(b'screenshot', 'screenshot')
+        ''
+        >>> checkprefix(b'mode: idle', 'mode')
+        'idle'
+        >>> checkprefix(b'mode switch', 'mode')
+        'switch'
+        >>> repr(checkprefix(b'modeswitch', 'mode'))
+        None
+        """
+        if cmd.startswith(prefix):
+            trunc = cmd.removeprefix(prefix)
+            if trunc.startswith(':'):
+                return trunc.lstrip(':').strip()
+            elif not trunc.strip():  # empty string
+                return ''
+            elif trunc[0].isspace():
+                return trunc.strip()
+        return None  # no match
 
     def loop(self):
         while self._run:
@@ -102,8 +153,7 @@ class UDP_Listener:
             print("Timed out wating for UDP Listener to die.")
 
 
-
-range_bgr = {
+range_rgb = {
     'red': (255, 0, 0),
     'orange': (255, 50, 0),
     'yellow': (200, 200, 0),
@@ -119,11 +169,11 @@ range_bgr = {
 
 
 class Program:
-    name = "Program"
     dict_names = {'servo_cfg_path', 'servo_data', 'servo1', 'servo2', 'detection_log', 'dry_run', 'start_time'}
     UDP_LISTENER_CLASS = UDP_Listener
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
+        self.args = args
         self._run = not args.start_paused
         self._stop_soon = False
 
@@ -133,15 +183,12 @@ class Program:
 
         self.servo_data: dict[str, Any]
         self.load_servo_config(self.servo_cfg_path)
+        self.name = self.__class__.__name__ if name is None else name
 
         if disable_logging:
             self.p = self.detection_log = None
         else:
-            if name is None and self.name:
-                name = self.name
-            else:
-                name = self.__name__
-            self.p = project.make_default_project(args.project, args.root, suffix=name)
+            self.p = project.make_default_project(args.project, args.root, suffix=self.name)
             self.p.make_root_interactive()
             self.detection_log = project.Logger(self.p.root / f"io.tsv")
             self.detection_log.firstcall = self.log_detection_header
@@ -275,11 +322,11 @@ class Program:
 
     def set_rgb(self, color: Union[str, tuple, list]):
         # Set the RGB light color of the expansion board to match the color you want to track
-        # color can be a key in range_bgr OR an RGB tuple
+        # color can be a key in range_rgb OR an RGB tuple
         if isinstance(color, str) or color is None:
-            if color not in range_bgr:
+            if color not in range_rgb:
                 color = "black"
-            b, g, r = range_bgr[color]
+            r, g, b = range_rgb[color]
         else:
             r, g, b = color
         self.board.RGB.setPixelColor(0, self.board.PixelColor(r, g, b))
@@ -335,16 +382,17 @@ class Program:
         self.init_move()
 
         def loop():
-            t_start = time.time_ns()
+            self.frame_start_ns = time.time_ns()
             self.main_loop()
-            frame_ns = time.time_ns() - t_start
-            frame_time = frame_ns / (10 ** 9)
-            self.fps = 1 / frame_time
+            frame_ns = time.time_ns() - self.frame_start_ns
+            self.last_frame_time = frame_ns / (10 ** 9)
+            self.fps = 1 / self.last_frame_time
             # print(self.fps)
 
         if self.p:
             self.save_artifacts()
 
+        self.first_frame_time = time.time()
         errors = 0
         while 1:
             try:

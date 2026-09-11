@@ -7,13 +7,15 @@
 import sys
 import time
 import math
+import socket
 import operator
 import argparse
+import datetime
 import numpy as np
 import cv2
 
 import hiwonder_common.statistics_tools as st
-from hiwonder_common.program import Program, main, range_bgr
+from hiwonder_common.program import Program, main, range_rgb, UDP_Listener
 import hiwonder_common.program  # modifies PATH
 
 # import after path modification
@@ -28,11 +30,26 @@ SERVO_CFG_PATH = '/home/pi/TurboPi/servo_config.yaml'
 
 
 dict_names = Program.dict_names
-dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager'}  # noqa: E501
+dict_names |= {'preview_size', 'target_color', 'lab_cfg_path', 'servo_cfg_path', 'lab_data', 'servo_data', 'detection_log', 'boolean_detection_averager', 'record'}  # noqa: E501
+
+UDP_Listener.dispatch_table['screenshot'] = 'screenshot'
+UDP_Listener.dispatch_table['maskshot'] = 'maskshot'
+
+
+def rgb2bgr(rgb):
+    return tuple(reversed(rgb[:3])) + rgb[3:]
+
+
+class RangeBGR:
+    @staticmethod
+    def __getitem__(key):
+        return rgb2bgr(range_rgb[key])
+
+
+range_bgr = RangeBGR()
 
 
 class CameraBinaryProgram(Program):
-    name = "BinaryProgram"
     dict_names = dict_names
 
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=False) -> None:
@@ -42,6 +59,7 @@ class CameraBinaryProgram(Program):
         self.target_color = ('green')
 
         self.camera: Camera.Camera | None = None
+        self.record = args.record
 
         self.lab_cfg_path = getattr(args, 'lab_cfg_path', THRESHOLD_CFG_PATH)
         self.servo_cfg_path = getattr(args, 'servo_cfg_path', SERVO_CFG_PATH)
@@ -57,6 +75,9 @@ class CameraBinaryProgram(Program):
         self.boolean_detection_averager = st.Average(10)
         self.moves_this_frame = []
         self.history = []  # movement history
+
+        self.annotated_image = None
+        self.masks = {}
 
         self.show = self.can_show_windows()
         if not self.show:
@@ -86,6 +107,8 @@ class CameraBinaryProgram(Program):
         self.lab_data = self.get_yaml_data(threshold_cfg_path)
 
     def stop(self, exit=True, silent=False):
+        if self.record:
+            self.writer.release()
         if self.camera:
             self.camera.camera_close()
         self.set_rgb('None')
@@ -115,10 +138,38 @@ class CameraBinaryProgram(Program):
         n = self.boolean_detection_averager.n
         self.detection_log += f"time_ns\tdetected [0, 1]\tsmoothed_detected [0, 1] ({n})\tmoves [(v, d, w), ...]\n"
 
+    def screenshot(self, filename: str, image=None, suffix='annotated'):
+        if image is None:
+            image = self.annotated_image
+        if image is None:
+            return
+        if not filename:
+            hostname = socket.gethostname()
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            if suffix:
+                suffix = f'_{suffix}'
+            filename = f'/home/pi/Pictures/{hostname}_{timestamp}{suffix}.png'
+        elif filename.startswith('http://') or filename.startswith('https://'):
+            import requests
+            requests.get(filename, stream=True).raw.decode_content = True
+            with open(filename.split('/')[-1], 'wb') as f:
+                for chunk in requests.get(filename, stream=True).iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            return
+        cv2.imwrite(filename, image)
+        print(f"Saved screenshot to {filename}")
+
+    def maskshot(self, color: str):
+        if color not in self.masks:
+            return
+        mask = self.masks[color]['mask']
+        self.screenshot('', mask, suffix=color)
+
     def main_loop(self):
         self.moves_this_frame = []
         avg_fps = self.fps_averager(self.fps)  # feed the averager
-        raw_img = self.camera.frame
+        raw_img = self.camera.frame  # This camera outputs BGR color
         if raw_img is None:
             time.sleep(0.01)
             return
@@ -130,7 +181,7 @@ class CameraBinaryProgram(Program):
         frame_clean = cv2.cvtColor(frame_clean, cv2.COLOR_BGR2LAB)  # convert to LAB space
 
         # prep a copy to be annotated
-        annotated_image = raw_img.copy()
+        self.annotated_image = annotated_image = raw_img.copy()
 
         # If we're calling target_contours() multiple times, some args will
         # be the same. Let's put them here to re-use them.
@@ -141,10 +192,12 @@ class CameraBinaryProgram(Program):
         # extract the LAB threshold
         threshold = (tuple(self.lab_data[self.target_color][key]) for key in ['min', 'max'])
         # breakpoint()
+        self.masks.setdefault(self.target_color, {})
         # run contour detection
         target_contours = self.color_contour_detection(
             frame_clean,
             tuple(threshold),  # type: ignore
+            save_to_dict=self.masks[self.target_color],
             **contour_args
         )
         # The output of color_contour_detection() is sorted highest to lowest
@@ -162,6 +215,9 @@ class CameraBinaryProgram(Program):
         else:
             self.draw_text(annotated_image, range_bgr['black'], 'None')
         self.draw_fps(annotated_image, range_bgr['black'], avg_fps)
+        if self.record:
+            frame = cv2.resize(annotated_image, self.preview_size)
+            self.writer.write(frame)
         frame_resize = cv2.resize(annotated_image, (320, 240))
         if self.show:
             cv2.imshow('frame', frame_resize)
@@ -174,6 +230,9 @@ class CameraBinaryProgram(Program):
     def main(self):
         self.camera = Camera.Camera()
         self.camera.camera_open(correction=True)  # Enable distortion correction, not enabled by default
+        if self.record:
+            self.writer = cv2.VideoWriter(self.record, cv2.VideoWriter_fourcc(*'mp4v'),
+                                          30, self.preview_size)
         super().main()
 
     @staticmethod
@@ -182,11 +241,15 @@ class CameraBinaryProgram(Program):
         threshold: tuple[tuple[int, int, int], tuple[int, int, int]],
         open_kernel: np.array = None,
         close_kernel: np.array = None,
+        save_to_dict=None,
     ):
+        if save_to_dict is None:
+            save_to_dict = {}
         # Image Processing
         # mask the colors we want
         threshold = [tuple(li) for li in threshold]  # cast to tuple to make cv2 happy
         frame_mask = cv2.inRange(frame, *threshold)  # type: ignore
+        save_to_dict['mask'] = frame_mask
         # Perform an opening and closing operation on the mask
         # https://youtu.be/1owu136z1zI?feature=shared&t=34
         frame = frame_mask.copy()
@@ -196,6 +259,7 @@ class CameraBinaryProgram(Program):
             frame = cv2.morphologyEx(frame, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
         # find contours (blobs) in the mask
         contours = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
+        save_to_dict['contours'] = contours
         areas = [math.fabs(cv2.contourArea(contour)) for contour in contours]
         # zip to provide pairs of (contour, area)
         zipped = zip(contours, areas)
@@ -223,6 +287,8 @@ class CameraBinaryProgram(Program):
 
 
 def get_parser(parser, subparsers=None):
+    parser.add_argument('--record', nargs='?', const='output.mp4', default=None,
+                        help="Record camera feed to output.mp4 or a specified filename (default: None)")
     return hiwonder_common.program.get_parser(parser, subparsers)
 
 
