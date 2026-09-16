@@ -14,6 +14,7 @@ import hiwonder_common.program as program
 
 class ConstantSpeedProgram(program.Program):
     name = "ConstantSpeedTest"
+
     def __init__(self, args, post_init=True, board=None, name=None, disable_logging=True) -> None:
         super().__init__(args, post_init=False, board=board, name=name, disable_logging=True)
         self.outputs = (args.forward_velocity, args.direction_vector, args.turning_rate)
