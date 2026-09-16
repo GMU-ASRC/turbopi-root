@@ -202,6 +202,7 @@ class Program:
         self.fps = 0.0
         self.fps_averager = st.Average(10)
 
+        self.first_frame_time = None
         self.start_time = time.time_ns()
         self.moves_this_frame = []
         self.history = []  # movement history

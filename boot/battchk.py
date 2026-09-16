@@ -60,10 +60,10 @@ rgb = {
     'white': (255, 255, 255),
 }
 
-spin_period = 0.100
+SPIN_PERIOD = 0.100
 
 
-def waitif(t):
+def waitif(t, spin_period=SPIN_PERIOD):
     n = t / spin_period
     for _ in range(int(n)):
         if __stop:
@@ -228,7 +228,7 @@ def main():
         print(f"Cell Voltage:\t{cell:.3f}")
         return
     while __stop and button_listen and KDN in button_states:
-        time.sleep(spin_period)  # trap if waiting for buttons to be unpressed...
+        time.sleep(SPIN_PERIOD)  # trap if waiting for buttons to be unpressed...
 
 
 def _watch():
@@ -239,14 +239,14 @@ def _watch():
             total = voltage_detection()
             if total is not None:
                 measurements.append(total / 2)
-            time.sleep(0.49)
+            waitif(0.49)
         if measurements and max(measurements) < BAD_CELL_VOLTAGE:
             print("Battery voltage is low. Stopping all registered processes.")
             buttonman.TaskManager().close_all_registered()
             buttonman.stop_board()
             main()
-            time.sleep(120)
-    time.sleep(10)
+            waitif(120, spin_period=1)
+    waitif(10, spin_period=0.5)
 
 
 def watch():
