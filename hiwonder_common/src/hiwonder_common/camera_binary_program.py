@@ -11,6 +11,7 @@ import socket
 import operator
 import argparse
 import datetime
+import pathlib as pl
 import numpy as np
 import cv2
 
@@ -60,6 +61,17 @@ class CameraBinaryProgram(Program):
 
         self.camera: Camera.Camera | None = None
         self.record = args.record
+        if self.record.startswith('__project__'):
+            name = pl.Path(self.record.removeprefix('__project__'))
+            if not name.name and not name.suffix:
+                name = name.with_suffix('.mp4')
+            if not name.name:
+                name = name.with_name('annotated')
+            self.record = self.p.root / name
+        self.screenshotdir = args.screenshotdir
+        if self.screenshotdir.startswith('__project__'):
+            name = self.screenshotdir.removeprefix('__project__').strip('/')
+            self.screenshotdir = self.p.root / name or 'screenshots'
 
         self.lab_cfg_path = getattr(args, 'lab_cfg_path', THRESHOLD_CFG_PATH)
         self.servo_cfg_path = getattr(args, 'servo_cfg_path', SERVO_CFG_PATH)
@@ -148,7 +160,7 @@ class CameraBinaryProgram(Program):
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             if suffix:
                 suffix = f'_{suffix}'
-            filename = f'/home/pi/Pictures/{hostname}_{timestamp}{suffix}.png'
+            filename = self.screenshotdir / f'/{hostname}_{timestamp}{suffix}.png'
         elif filename.startswith('http://') or filename.startswith('https://'):
             import requests
             requests.get(filename, stream=True).raw.decode_content = True
@@ -287,8 +299,11 @@ class CameraBinaryProgram(Program):
 
 
 def get_parser(parser, subparsers=None):
-    parser.add_argument('--record', nargs='?', const='output.mp4', default=None,
-                        help="Record camera feed to output.mp4 or a specified filename (default: None)")
+    parser.add_argument('--record', nargs='?', const='annotated.mp4', default=None,
+                        help="Record camera feed to annotated.mp4 or a specified filename (default: don't record)")
+    parser.add_argument('--screenshotdir', default='/home/pi/Pictures',
+                        help="Specify a directory to save screenshots to. "
+                             "Set to __project__ to save to <project root>/screenshots")
     return hiwonder_common.program.get_parser(parser, subparsers)
 
 
