@@ -169,6 +169,9 @@ class CameraBinaryProgram(Program):
                     if chunk:
                         f.write(chunk)
             return
+        elif not pl.Path(filename).expanduser().is_absolute():
+            filename = self.screenshotdir / filename
+        self.p.ensure_file_parents(filename)
         cv2.imwrite(str(filename), image)
         print(f"Saved screenshot to {filename}")
 
@@ -243,6 +246,7 @@ class CameraBinaryProgram(Program):
         self.camera = Camera.Camera()
         self.camera.camera_open(correction=True)  # Enable distortion correction, not enabled by default
         if self.record:
+            self.p.ensure_file_parents(self.record)
             self.writer = cv2.VideoWriter(str(self.record), cv2.VideoWriter_fourcc(*'mp4v'),
                                           30, self.preview_size)
         super().main()
