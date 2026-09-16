@@ -71,7 +71,7 @@ class CameraBinaryProgram(Program):
         self.screenshotdir = args.screenshotdir
         if self.screenshotdir.startswith('__project__'):
             name = self.screenshotdir.removeprefix('__project__').strip('/')
-            self.screenshotdir = self.p.root / name or 'screenshots'
+            self.screenshotdir = self.p.root / (name or 'screenshots')
 
         self.lab_cfg_path = getattr(args, 'lab_cfg_path', THRESHOLD_CFG_PATH)
         self.servo_cfg_path = getattr(args, 'servo_cfg_path', SERVO_CFG_PATH)
@@ -160,7 +160,7 @@ class CameraBinaryProgram(Program):
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             if suffix:
                 suffix = f'_{suffix}'
-            filename = self.screenshotdir / f'/{hostname}_{timestamp}{suffix}.png'
+            filename = self.screenshotdir / f'{hostname}_{timestamp}{suffix}.png'
         elif filename.startswith('http://') or filename.startswith('https://'):
             import requests
             requests.get(filename, stream=True).raw.decode_content = True
