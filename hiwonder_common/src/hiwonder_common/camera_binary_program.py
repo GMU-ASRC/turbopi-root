@@ -64,8 +64,8 @@ class CameraBinaryProgram(Program):
         if self.record.startswith('__project__'):
             name = pl.Path(self.record.removeprefix('__project__'))
             if not name.name and not name.suffix:
-                name = name.with_suffix('.mp4')
-            if not name.name:
+                name = pl.Path('annotated.mp4')
+            elif not name.name:
                 name = name.with_name('annotated')
             self.record = self.p.root / name
         self.screenshotdir = args.screenshotdir
