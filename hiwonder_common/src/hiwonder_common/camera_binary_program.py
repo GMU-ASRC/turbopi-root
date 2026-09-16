@@ -243,7 +243,7 @@ class CameraBinaryProgram(Program):
         self.camera = Camera.Camera()
         self.camera.camera_open(correction=True)  # Enable distortion correction, not enabled by default
         if self.record:
-            self.writer = cv2.VideoWriter(self.record, cv2.VideoWriter_fourcc(*'mp4v'),
+            self.writer = cv2.VideoWriter(str(self.record), cv2.VideoWriter_fourcc(*'mp4v'),
                                           30, self.preview_size)
         super().main()
 
