@@ -169,7 +169,7 @@ class CameraBinaryProgram(Program):
                     if chunk:
                         f.write(chunk)
             return
-        cv2.imwrite(filename, image)
+        cv2.imwrite(str(filename), image)
         print(f"Saved screenshot to {filename}")
 
     def maskshot(self, color: str):
