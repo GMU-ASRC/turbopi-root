@@ -63,5 +63,11 @@ if [ $? -eq 0 ]; then
 else
     echo 'Alias already exists for battery check: batt'
 fi
+update_bashrc "alias stop='sudo python3 /home/pi/boot/stop.py'"
+if [ $? -eq 0 ]; then
+    echo 'Added alias for stop'
+else
+    echo 'Alias already exists for stop'
+fi
 echo
 echo Done!

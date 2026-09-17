@@ -59,6 +59,13 @@ def stop_board():
         for i in range(1, 5):
             Board.setMotor(i, 1)
             Board.setMotor(i, 0)
+        for i in range(3):
+            for i in range(1, 5):
+                Board.setMotor(i, 1)
+            for i in range(1, 5):
+                Board.setMotor(i, 0)
+        for i in range(1, 5):
+            Board.setMotor(i, 0)
         Board.setBuzzer(0)
         s = Sonar.Sonar()
         s.setRGBMode(0)

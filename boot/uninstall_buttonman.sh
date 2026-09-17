@@ -26,4 +26,5 @@ systemctl enable hw_button_scan.service
 systemctl start hw_button_scan.service
 echo 'Removing aliases from bashrc'
 removefrom_bashrc "alias batt='sudo python3 /home/pi/boot/battchk.py'"
+removefrom_bashrc "alias stop='sudo python3 /home/pi/boot/stop.py'"
 echo 'Done'
