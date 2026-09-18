@@ -74,6 +74,7 @@ class CameraBinaryProgram(Program):
         if self.screenshotdir.startswith('__project__'):
             name = self.screenshotdir.removeprefix('__project__').strip('/')
             self.screenshotdir = self.p.root / (name or 'screenshots')
+        self.screenshotdir = pl.Path(self.screenshotdir)
 
         self.lab_cfg_path = getattr(args, 'lab_cfg_path', THRESHOLD_CFG_PATH)
         self.servo_cfg_path = getattr(args, 'servo_cfg_path', SERVO_CFG_PATH)
