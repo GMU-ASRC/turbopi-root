@@ -24,7 +24,7 @@ class ConstantSpeedProgram(program.Program):
 
     def control(self):
         if (
-            self.first_frame_time is not None
+            self.first_frame_time is not None and self.args.time is not None
             and self.first_frame_time + self.args.time < time.time()
         ):
             self.stop()
