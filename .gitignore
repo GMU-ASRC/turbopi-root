@@ -3,6 +3,10 @@
 !.gitattributes
 
 /setupscripts/
+/.setupscripts/
+
+.vscode/*
+*.code-workspace
 
 /TurboPi/
 /create_ap/
