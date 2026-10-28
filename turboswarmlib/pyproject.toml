@@ -1,5 +1,5 @@
 [project]
-name = "hiwonder_common"
+name = "turboswarmlib"
 version = "0.0.1"
 authors = [
   { name="Kevin Zhu", email="kzhu4@gmu.edu" },

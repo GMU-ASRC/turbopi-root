@@ -15,9 +15,9 @@ import pathlib as pl
 import numpy as np
 import cv2
 
-import hiwonder_common.statistics_tools as st
-from hiwonder_common.program import Program, main, range_rgb, UDP_Listener
-import hiwonder_common.program  # modifies PATH
+import turboswarmlib.statistics_tools as st
+from turboswarmlib.program import Program, main, range_rgb, UDP_Listener
+import turboswarmlib.program  # modifies PATH
 
 # import after path modification
 import Camera  # type: ignore
@@ -309,7 +309,7 @@ def get_parser(parser, subparsers=None):
     parser.add_argument('--screenshotdir', default='/home/pi/Pictures',
                         help="Specify a directory to save screenshots to. "
                              "Set to __project__ to save to <project root>/screenshots")
-    return hiwonder_common.program.get_parser(parser, subparsers)
+    return turboswarmlib.program.get_parser(parser, subparsers)
 
 
 if __name__ == '__main__':

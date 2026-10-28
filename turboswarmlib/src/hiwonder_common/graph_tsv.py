@@ -15,7 +15,7 @@ except ImportError:
     from more_itertools import pairwise
 
 try:
-    from hiwonder_common import project
+    from turboswarmlib import project
 except ImportError:
     try:
         import project
